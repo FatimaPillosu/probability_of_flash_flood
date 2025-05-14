@@ -1,0 +1,98 @@
+# Metview Macro
+
+#######################################################
+# CODE DESCRIPTION
+# create_mask_usa_era5.mv creates the US mask for the ERA5 grid 
+# at 31 km resolution, and saves it as a grib file. The code needs to 
+# be run only once to create the mask. The code is kept for 
+# reproducibility purposes.
+# Runtime: negligible.
+
+# INPUT PARAMETERS DESCRIPTION
+# git_repo (string): repository's local path.
+# dir_out (string): relative path containing the domain's mask.
+
+# INPUT PARAMETERS
+git_repo = "/ec/vol/ecpoint_dev/mofp/papers_2_write/PoFF_USA"
+dir_out = "data/raw/mask/usa_era5"
+#######################################################
+
+
+# Retrieving the raw data to create the mask
+print("Retrieving the raw data to create the USA mask for ERA5...")
+
+lsm = retrieve(
+      class: "ea",
+      type: "fc",
+      stream: "oper",
+      levtype: "sfc",
+      expver: 1,
+      param: "172.128",
+      date: "1940-01-01",
+      step: 0,
+      time: "06:00:00"
+      )
+
+zeros = lsm * 0
+
+# Definition of the areas [S/W/N/E] to create the mask
+area_main = [24.8, -125.24, 49, -59.5]
+area_1 = [48.42, -125.24, 49, -123.2]
+area_2 = [48.8, -94.75, 49, -63]
+area_3 = [48.75, -94.5, 49, -93.1]
+area_4 = [48.6, -93.1, 49, -63]
+area_5 = [48.5, -92.6, 49, -63]
+area_6 = [48.2, -92, 49, -63]
+area_7 = [46.8, -86.11, 49, -69.9]
+area_8 = [46.6, -84.7, 49, -70.25]
+area_9 = [46.32, -84, 49, -70.25]
+area_10 = [46.18, -83.4, 49, -70.4]
+area_11 = [42.1, -82.4, 49, -80.4]
+area_12 = [42.66, -80.4, 49, -79.17]
+area_13 = [41.8, -83.12, 42.33, -82.17]
+area_14 = [43.6, -79.23, 49, -76.5]
+area_15 = [44.35, -76.5, 49, -76.2]
+area_16 = [44.53, -76.4, 49, -75.78]
+area_17 = [45.19,-75.96, 49, -71.526]
+area_18 = [47.5, -69.98, 49, -59]
+area_19 = [45.733, -67.6, 49, -59]
+area_20 = [45.22, -67.431, 49, -59]
+area_21 = [43, -66.7, 49, -59]
+area_22 = [44.24, -76.58, 49, -76.23]
+area_23 = [44.13, -76.503, 49, -76.36]
+area_24 = [45.47, -71.8, 49, -70.8]
+area_25 = [45.76, -71, 46.18, -70.5]
+area_26 = [47.16, -70, 47.5, -69.68]
+area_27 = [24, -79.4, 27.5, -75.36]
+area_28 = [24, -118, 25.79, -96]
+area_29 = [24, -118, 27.62, -99.7]
+area_30 = [24, -102.67, 29.73, -101.43]
+area_31 = [24, -118, 28.89, -102.5]
+area_32 = [24, -108.2, 31.7, -106.42]
+area_33 = [24, -118, 31.14, -108.2]
+area_34 = [24, -118, 32.40, -114.92]
+area_35 = [31.12, -118, 32.12, -113.68]
+area_36 = [31.12, -118, 31.84, -112.9]
+area_37 = [31.12, -118, 31.42, -111.77]
+area_38 = [24, -106.7, 30.57, -104.9]
+area_39 = [24, -106.7, 31, -105.6]
+area_40 = [24, -105.2, 29.45, -104.3]
+area_41 = [24, -101.6, 28.47, -100.4]
+area_42 = [24, -101.56, 29.17, -100.8]
+area_43 = [24, -100.5, 27.9, -100]
+area_44 = [24, -100, 26.64, -99.2]
+area_45 = [24, -99.3, 26.22, -98.77]
+area_46 = [24, 98.79, 25.94, -97.63]
+
+# Creating the mask
+print("Creating the mask")
+usa = ( mask(zeros,area_main) and not mask(zeros,area_1) and not mask(zeros,area_2) and not mask(zeros,area_3) and not mask(zeros,area_4) and not mask(zeros,area_5) and not mask(zeros,area_6) and not mask(zeros,area_7) and not mask(zeros,area_8) and not mask(zeros,area_9) and not mask(zeros,area_10) and not mask(zeros,area_11) and not mask(zeros,area_12) and not mask(zeros,area_13) and not mask(zeros,area_14) and not mask(zeros,area_15) and not mask(zeros,area_16) and not mask(zeros,area_17) and not mask(zeros,area_18) and not mask(zeros,area_19) and not mask(zeros,area_20) and not mask(zeros,area_21) and not mask(zeros,area_22) and not mask(zeros,area_23) and not mask(zeros,area_24) and not mask(zeros,area_25) and not mask(zeros,area_26) and not mask(zeros,area_27) and not mask(zeros,area_28) and not mask(zeros,area_29) and not mask(zeros,area_30) and not mask(zeros,area_31) and not mask(zeros,area_32) and not mask(zeros,area_33) and not mask(zeros,area_34) and not mask(zeros,area_35) and not mask(zeros,area_36) and not mask(zeros,area_37) and not mask(zeros,area_38) and not mask(zeros,area_39) and not mask(zeros,area_40) and not mask(zeros,area_41) and not mask(zeros,area_42) and not mask(zeros,area_43) and not mask(zeros,area_44) and not mask(zeros,area_45) and not mask(zeros,area_46) ) * (lsm>0.05)
+usa = bitmap(usa,0)
+vals = values(usa)
+print(" - N. of grid-boxes in the domain: " & sum(vals))
+
+# Saving the mask as .grib file
+print("Saving the mask as a .grib file...")
+shell("mkdir -p " & git_repo & "/" & dir_out)
+file_out_grib = git_repo & "/" & dir_out & "/mask.grib"
+write(file_out_grib, usa)
