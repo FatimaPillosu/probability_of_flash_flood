@@ -1,3 +1,4 @@
 data/raw/*
 data/compute/*
 code/processed/log_atos/*
+._mv_*
