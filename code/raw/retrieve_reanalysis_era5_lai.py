@@ -2,21 +2,28 @@ import os
 from datetime import datetime, timedelta
 import metview as mv
 
-###########################################################
+#######################################################################
 # CODE DESCRIPTION
-# retrieve_reanalysis_era5_lai.py retrieves from MARS the raw datasets 
-# needed to compute the leaf area index. The fields change every day, 
-# but they are the same every year.
-# Runtime: the code takes up to 10 minutes.
+# retrieve_reanalysis_era5_lai.py retrieves from MARS the raw datasets needed to 
+# compute the leaf area index. The fields change every day, but they are the same 
+# every year.
+
+# Usage: python3 retrieve_reanalysis_era5_lai.py
+
+# Runtime: ~ 1 hour.
+
+# Author: Fatima M. Pillosu <fatima.pillosu@ecmwf.int> | ORCID 0000-0001-8127-0990
+# License: Creative Commons Attribution-NonCommercial_ShareAlike 4.0 International
 
 # INPUT PARAMETERS DESCRIPTION
 # git_repo (string): repository's local path.
 # dir_out (string): relative path containing the computed leaf area index.
 
+#######################################################################
 # INPUT PARAMETERS
 git_repo="/ec/vol/ecpoint_dev/mofp/papers_2_write/PoFF_USA"
 dir_out="data/raw/reanalysis/era5/lai"
-###########################################################
+#######################################################################
 
 
 # Setting output directory

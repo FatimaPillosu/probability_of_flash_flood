@@ -3,20 +3,28 @@ import shutil
 
 ############################################################################################
 # CODE DESCRIPTION
-# retrieve_reanalysis_era5_ecpoint_tp_24h_climate_1991_2020.sh retrieves from disk the 24-hourly rainfall 
-# climatology computed between 1991 and 2020, from ERA5-ecPoint.  
+# retrieve_tp_24h_climate_1991_2020.py retrieves the 24-hourly rainfall climate computed between 1991 and 
+# 2020, from ERA5-ecPoint.  
+
+# Usage: python3 retrieve_tp_24h_climate_1991_2020.py
+
 # Runtime: negligible.
+
+# Author: Fatima M. Pillosu <fatima.pillosu@ecmwf.int> | ORCID 0000-0001-8127-0990
+# License: Creative Commons Attribution-NonCommercial_ShareAlike 4.0 International
 
 # INPUT PARAMETERS DESCRIPTION
 # git_repo (string): repository's local path.
 # file_in (string): full path of the file containing the rainfall climatology to retrieve.
 # dir_out (string): relative path of the directory containing the rainfall climatology and the computed percentiles.
 
+############################################################################################
 # INPUT PARAMETERS
 git_repo = "/ec/vol/ecpoint_dev/mofp/papers_2_write/PoFF_USA"
 dir_in_global ="/ec/vol/ecpoint/mofp/climate_reference/data/era5_ecpoint/tp_24h_1991_2020"
 dir_out = "data/raw/reanalysis/era5_ecpoint/tp_24h_climate_1991_2020"
 ############################################################################################
+
 
 # Setting output directory
 main_dir_out = git_repo + "/" + dir_out

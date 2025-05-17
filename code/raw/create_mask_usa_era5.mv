@@ -1,21 +1,26 @@
 # Metview Macro
 
-#######################################################
+#######################################################################
 # CODE DESCRIPTION
-# create_mask_usa_era5.mv creates the US mask for the ERA5 grid 
-# at 31 km resolution, and saves it as a grib file. The code needs to 
-# be run only once to create the mask. The code is kept for 
-# reproducibility purposes.
+# create_mask_usa_era5.mv creates the US mask for the ERA5 grid at 31 km resolution, 
+# and saves it as a grib file for use in subsequent scripts.
+
+# Usage: metview -b create_mask_usa_era5.mv 
+
 # Runtime: negligible.
+
+# Author: Fatima M. Pillosu <fatima.pillosu@ecmwf.int> | ORCID 0000-0001-8127-0990
+# License: Creative Commons Attribution-NonCommercial_ShareAlike 4.0 International
 
 # INPUT PARAMETERS DESCRIPTION
 # git_repo (string): repository's local path.
 # dir_out (string): relative path containing the domain's mask.
 
+#######################################################################
 # INPUT PARAMETERS
 git_repo = "/ec/vol/ecpoint_dev/mofp/papers_2_write/PoFF_USA"
-dir_out = "data/raw/mask/usa_era5"
-#######################################################
+dir_out = "data/raw/mask"
+#######################################################################
 
 
 # Retrieving the raw data to create the mask
@@ -94,5 +99,5 @@ print(" - N. of grid-boxes in the domain: " & sum(vals))
 # Saving the mask as .grib file
 print("Saving the mask as a .grib file...")
 shell("mkdir -p " & git_repo & "/" & dir_out)
-file_out_grib = git_repo & "/" & dir_out & "/mask.grib"
+file_out_grib = git_repo & "/" & dir_out & "/usa_era5.grib"
 write(file_out_grib, usa)

@@ -1,11 +1,16 @@
 #!/bin/bash
 
-#######################################################
+#######################################################################
 # CODE DESCRIPTION
-# retrieve_reanalysis_era5_swvl_fc.sh retrieves from MARS the 
-# volumetric soil water from ERA5 (31 km resolution) medium-range
-# forecasts for the first 3 soil levels.
-# Runtime: the code takes up to 1 hour per year.
+# retrieve_reanalysis_era5_swvl_long_fc.sh retrieves from MARS the volumetric soil 
+# water from ERA5's (31 km resolution) long-range forecasts, for the first 3 soil levels.
+
+# Usage: ./retrieve_reanalysis_era5_swvl_long_fc.sh
+
+# Runtime: ~ 1 hour per year.
+
+# Author: Fatima M. Pillosu <fatima.pillosu@ecmwf.int> | ORCID 0000-0001-8127-0990
+# License: Creative Commons Attribution-NonCommercial_ShareAlike 4.0 International
 
 # INPUT PARAMETERS DESCRIPTION
 # year_s (year, in YYYY format): start year to retrieve.
@@ -13,12 +18,13 @@
 # git_repo (string): repository's local path.
 # dir_out (string): relative path containing the retrieved forecasts.
 
+#######################################################################
 # INPUT PARAMETERS
 year_s=2021
 year_f=2024
 git_repo="/ec/vol/ecpoint_dev/mofp/papers_2_write/PoFF_USA"
-dir_out="data/raw/reanalysis/era5/swvl_fc"
-#######################################################
+dir_out="data/raw/reanalysis/era5/swvl_long_fc"
+#######################################################################
 
 
 # Retrieveing the soil moisture from ERA5-LAND
