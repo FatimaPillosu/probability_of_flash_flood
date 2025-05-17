@@ -37,20 +37,33 @@ Large raw datasets (ECMWF ensemble forecasts, precipitation radar composites, an
 
 ## Citation
 @phdthesis{Pillosu_2025,
+  
   author = {Fatima Maria Pillosu},
+  
   title  = {Probability of Flash Floods},
+  
   school = {University of Reading},
+  
   year   = {2025},
+  
   doi    = {10.1234/example.doi}
+
 }
 
 @software{Pillosu_FlashProb_2025,
+  
   author  = {Pillosu, Fatima Maria},
+  
   title   = {Code and Data for the PhD thesis 'Probability of Flash Floods'},
+  
   version = {0.0.1},
+  
   doi     = {10.5281/zenodo.xxxxxxx},
+  
   url     = {https://github.com/FatimaPillosu/probability_of_flash_flood},
+  
   date    = {2025-05-14}
+
 }
 
 
@@ -76,5 +89,7 @@ This work is licensed under a
 
 ## Contact and support
 Email: fatima.pillosu@ecmwf.int
+
 ORCID: 0000-0001-8127-0990
+
 Research Group: Reading Meteorology & ECMWF
