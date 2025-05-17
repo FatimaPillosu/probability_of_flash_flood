@@ -1,21 +1,22 @@
-cff-version: 0.0.1 
+cff-version: 1.2.0
 message: "If you use this code, data, or thesis material, please cite it as indicated below:"
 title: "Code and Data for the PhD thesis 'Probability of Flash Floods"
 version: "0.0.1"
 doi: "to be completed"
-date-released: 2025-05-14
+date-released: "to be completed"
 
 authors:
-  - family-names: Pillosu
-    given-names Fatima Maria
-    orcid: https://orcid.org/0000-0001-8127-0990
-    affiliation: University of Reading and ECMWF
-
-repository-code: https://github.com/FatimaPillosu/phd_thesis
-license: Creative Commons Attribution-NonCommercial_ShareAlike 4.0 International
+  - family-names: "Pillosu"
+    given-names: "Fatima Maria"
+    orcid: "https://orcid.org/0000-0001-8127-0990"
+    affiliation: 
+      - "University of Reading"
+      - "ECMWF"
+repository-code: "https://github.com/FatimaPillosu/probability_of_flash_flood"
+license: "CC-BY-NC-SA-4.0"
 keywords:
-  - flash floods
-  - extreme rainfall
-  - machine learning
-  - ensemble forecasting
-  - ecPoint
+  - "flash floods"
+  - "extreme rainfall"
+  - "machine learning"
+  - "ensemble forecasting"
+  - "ecPoint"
