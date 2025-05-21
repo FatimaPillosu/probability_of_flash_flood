@@ -2,12 +2,7 @@ import numpy as np
 
 
 #######################################
-def reliability_diagram_bs(obs, prob, num_bs):
-
-      num_dates = obs.shape[0]
-      indices = np.concatenate([np.arange(num_dates)[:, None], np.random.choice(num_dates, size=(num_bs, num_dates), replace = True).T], axis=1) 
-      obs_bs = np.transpose( np.take(obs, indices, axis=0), (0, 2, 1) ).reshape(-1, num_bs + 1) * 100
-      prob_bs = np.transpose( np.take(prob, indices, axis=0), (0, 2, 1) ).reshape(-1, num_bs + 1)
+def reliability_diagram_bs(obs_bs, prob_bs):
 
       prob_bins = np.arange(0, 100 + 1, 1)
       mean_prob_fc = []
@@ -32,13 +27,8 @@ def reliability_diagram_bs(obs, prob, num_bs):
 
 
 #########################################################
-def contingency_table_probabilistic_bs(obs, prob, num_em, num_bs):
+def contingency_table_probabilistic_bs(obs_bs, prob_bs, num_em):
 
-      num_dates = obs.shape[0]
-      indices = np.concatenate([np.arange(num_dates)[:, None], np.random.choice(num_dates, size=(num_bs, num_dates), replace = True).T], axis=1) 
-      obs_bs = np.transpose( np.take(obs, indices, axis=0), (0, 2, 1) ).reshape(-1, num_bs + 1)
-      prob_bs = np.transpose( np.take(prob, indices, axis=0), (0, 2, 1) ).reshape(-1, num_bs + 1)
-      
       h_bs = []
       fa_bs = []
       m_bs = []
