@@ -20,7 +20,7 @@
 ##################################################################################################################
 # INPUT PARAMETERS
 year=${1}
-git_repo="/ec/vol/ecpoint_dev/mofp/papers_2_write/PoFF_USA"
+git_repo="/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
 dir_in_global="/ec/vol/ecpoint/mofp/reanalysis/ecpoint/SemiOper/ECMWF_ERA5_FC/0011/Rainfall/024/Code2.0.0_Cal1.0.0/Pt_BC_PERC"
 dir_out="data/raw/reanalysis/era5_ecpoint/tp_24h_long_fc"
 ##################################################################################################################

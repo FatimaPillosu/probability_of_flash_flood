@@ -21,7 +21,7 @@ import metview as mv
 
 #######################################################################
 # INPUT PARAMETERS
-git_repo="/ec/vol/ecpoint_dev/mofp/papers_2_write/PoFF_USA"
+git_repo="/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
 dir_out="data/raw/reanalysis/era5/lai"
 #######################################################################
 

@@ -22,7 +22,7 @@
 # INPUT PARAMETERS
 year_s=2001
 year_f=2024
-git_repo="/ec/vol/ecpoint_dev/mofp/papers_2_write/PoFF_USA"
+git_repo="/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
 dir_out="data/raw/reanalysis/era5/swvl_short_fc"
 #######################################################################
 

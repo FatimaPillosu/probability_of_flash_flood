@@ -20,7 +20,7 @@ import shutil
 
 ############################################################################################
 # INPUT PARAMETERS
-git_repo = "/ec/vol/ecpoint_dev/mofp/papers_2_write/PoFF_USA"
+git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
 dir_in_global ="/ec/vol/ecpoint/mofp/climate_reference/data/era5_ecpoint/tp_24h_1991_2020"
 dir_out = "data/raw/reanalysis/era5_ecpoint/tp_24h_climate_1991_2020"
 ############################################################################################
