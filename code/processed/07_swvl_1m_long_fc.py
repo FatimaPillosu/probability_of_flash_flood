@@ -19,7 +19,7 @@ import metview as mv
 # year (integer, in YYYY format): year to consider.
 # step_start (integer, hours): start step to consider.
 # step_final (integer, hours): final step to consider.
-# step_disc (integer, hours): discretisation to consider for step_s.
+# step_disc (integer, hours): discretisation to consider for the steps.
 # git_repo (string): repository's local path.
 # dir_in (string): relative path of the directory containing the volumetric soil water for levels 1 (0-7cm), 2(7-28cm), and 3(28-100cm).
 # dir_out (string): relative path of the directory containing the instantaneous percentage of soil saturation.

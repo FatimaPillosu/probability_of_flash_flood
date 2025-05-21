@@ -10,7 +10,7 @@ import metview as mv
 
 # Usage: python3 08_prob_ff_meteo_bootstrapped_short_fc.py
 
-# Runtime: ~ 20 minutes.
+# Runtime: ~ 20 minutes per num_bs = 100.
 
 # Author: Fatima M. Pillosu <fatima.pillosu@ecmwf.int> | ORCID 0000-0001-8127-0990
 # License: Creative Commons Attribution-NonCommercial_ShareAlike 4.0 International

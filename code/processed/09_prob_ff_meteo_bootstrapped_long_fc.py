@@ -10,7 +10,7 @@ import metview as mv
 
 # Usage: python3 09_prob_ff_meteo_bootstrapped_long_fc.py
 
-# Runtime: ~ 2 hours.
+# Runtime: ~ 2 hours per num_bs = 100.
 
 # Author: Fatima M. Pillosu <fatima.pillosu@ecmwf.int> | ORCID 0000-0001-8127-0990
 # License: Creative Commons Attribution-NonCommercial_ShareAlike 4.0 International
@@ -34,7 +34,7 @@ base_date_s = datetime(2021,1,1,0)
 base_date_f = datetime(2024,12,31,0)
 step_f_start = 24
 step_f_final = 120
-rp_list = [1,5,10,20,50,100]
+rp_list = [1, 5, 10, 20, 50, 100]
 num_bs = 100
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
 file_in_mask = "data/raw/mask/usa_era5.grib"
