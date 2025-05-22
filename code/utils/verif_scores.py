@@ -2,45 +2,77 @@ import numpy as np
 
 
 #######################################
-def reliability_diagram_bs(obs_bs, prob_bs):
+def reliability_diagram(obs, prob):
 
       prob_bins = np.arange(0, 100 + 1, 1)
+      
       mean_prob_fc = []
       mean_freq_obs = []
       sharpness = []
-      
-      for ind in range(len(prob_bins) - 1):
 
-            bin_i = prob_bins[ind]
-            bin_j = prob_bins[ind + 1]
-            ind_bin = ( (prob_bs >= bin_i) & (prob_bs < bin_j) ).astype(float)
-            ind_bin[ ind_bin == 0 ] = np.nan
+      for ind_prob in range(len(prob_bins) - 1):
 
-            mean_prob_fc.append( np.nan_to_num( np.nanmean(prob_bs * ind_bin, axis = 0), nan = (bin_i + bin_j)/2 ) )
-            mean_freq_obs.append( np.nanmean(obs_bs * ind_bin, axis = 0) )
-            sharpness.append( np.nansum(ind_bin, axis = 0) )
+            prob_i = prob_bins[ind_prob]
+            prob_j = prob_bins[ind_prob + 1]
+            ind_prob_bin = np.where( (prob>= prob_i) & (prob < prob_j) )[0]
+            num_elements = len(ind_prob_bin)
+
+            if num_elements == 0:
+                  mean_prob_fc.append( (prob_i + prob_j) / 2 )
+                  mean_freq_obs.append(0)
+            else:
+                  mean_prob_fc.append( np.mean(prob[ind_prob_bin]) )
+                  mean_freq_obs.append( np.mean(obs[ind_prob_bin]) )
+            sharpness.append( num_elements )
             
-      mean_freq_obs = np.nan_to_num(np.array(mean_freq_obs), nan=0)
-      sharpness = np.nan_to_num(np.array(sharpness), nan=0)
-
-      return np.array(mean_prob_fc), mean_freq_obs, sharpness
-
+      return np.array(mean_prob_fc), np.array(mean_freq_obs), np.array(sharpness)
+      
 
 #########################################################
-def contingency_table_probabilistic_bs(obs_bs, prob_bs, num_em):
+def contingency_table_probabilistic(obs, prob, num_em):
 
-      h_bs = []
-      fa_bs = []
-      m_bs = []
-      cn_bs = []
+      dim = obs.ndim
       prob_nwp_list = np.arange(0, num_em) / num_em * 100
-      for prob_nwp in prob_nwp_list:
-            h_bs.append( ( (prob_bs >= prob_nwp) & (obs_bs == 1) ).sum(axis = 0) )
-            fa_bs.append( ( (prob_bs >= prob_nwp) & (obs_bs == 0) ).sum(axis = 0) )
-            m_bs.append( ( (prob_bs < prob_nwp) & (obs_bs == 1) ).sum(axis = 0) )
-            cn_bs.append( ( (prob_bs < prob_nwp) & (obs_bs == 0) ).sum(axis = 0) )
-      
-      return np.array(h_bs), np.array(fa_bs), np.array(m_bs), np.array(cn_bs)
+
+      if dim == 1: # for 1-d arrays (e.g.., for original datasets)
+
+            yes_event_obs = (obs == 1)[:, None]
+            non_event_obs = (obs == 0)[:, None]
+
+            yes_event_fc = prob[:, None] >= prob_nwp_list  # shape: (n_samples, n_thresholds)
+            non_event_fc = ~yes_event_fc
+
+            h = np.sum(yes_event_fc & yes_event_obs, axis=0)
+            fa = np.sum(yes_event_fc & non_event_obs, axis=0)
+            m = np.sum(non_event_fc & yes_event_obs, axis=0)
+            cn = np.sum(non_event_fc & non_event_obs, axis=0)
+
+      else: # for 2-d arrays (e.g.., for bootstrapped datasets)
+
+            h = []
+            fa = []
+            m = []
+            cn = []
+
+            yes_event_obs = obs == 1
+            non_event_obs = obs == 0
+
+            for prob_nwp in prob_nwp_list: # need to mantain the for loop due to memory issues
+
+                  yes_event_fc = prob >= prob_nwp
+                  non_event_fc = ~yes_event_fc
+
+                  h.append(np.sum(yes_event_fc & yes_event_obs, axis = 0))
+                  fa.append(np.sum(yes_event_fc & non_event_obs, axis = 0))
+                  m.append(np.sum(non_event_fc & yes_event_obs, axis = 0))
+                  cn.append(np.sum(non_event_fc & non_event_obs, axis = 0))
+            
+            h = np.array(h)
+            fa = np.array(fa)
+            m = np.array(m)
+            cn = np.array(cn)
+
+      return h, fa, m, cn
 
 
 ########################
