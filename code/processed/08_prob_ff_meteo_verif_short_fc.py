@@ -48,7 +48,7 @@ from sklearn.metrics import roc_curve, roc_auc_score
 rp = int(sys.argv[1])
 date_s = datetime(2021,1,1,0)
 date_f = datetime(2024,12,31,0)
-num_bs = 10
+num_bs = 1000
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
 file_in_mask = "data/raw/mask/usa_era5.grib"
 dir_in_ff = "data/processed/03_grid_acc_reports_ff"
