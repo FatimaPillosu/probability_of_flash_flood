@@ -236,7 +236,7 @@ def fb_ci(rp_list, rp_colour_list, fb, alpha, file_out):
       ax.set_ylabel("FB [-] ", color='#333333')
 
       plt.xlim([-0.1, m - 1 + 0.1])
-      plt.ylim([0,80])
+      plt.ylim([0,15])
       ax.spines['bottom'].set_color('darkgrey')
       ax.spines['left'].set_color('darkgrey')
       ax.spines['top'].set_color('darkgrey')
