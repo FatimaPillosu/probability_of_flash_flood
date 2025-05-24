@@ -144,9 +144,9 @@ def reliability_diagram_ci(rp, rp_colour, prob_fc, freq_obs, sharpness, alpha, f
       inset_ax.yaxis.get_offset_text().set_fontsize(8)
       inset_ax.set_xlim(-1, 101)
       inset_ax.set_ylim(1e0, 10 ** np.ceil(np.log10(np.sum(sharpness_real)))) 
-      ax.yaxis.set_major_locator(LogLocator(base=10.0, subs=None))
-      ax.yaxis.set_major_formatter(ScalarFormatter())
-      ax.yaxis.set_minor_formatter(plt.NullFormatter())
+      inset_ax.yaxis.set_major_locator(LogLocator(base=10.0, subs=None))
+      inset_ax.yaxis.set_major_formatter(ScalarFormatter())
+      inset_ax.yaxis.set_minor_formatter(plt.NullFormatter())
 
       inset_ax.spines['bottom'].set_color('darkgrey')
       inset_ax.spines['left'].set_color('darkgrey')
