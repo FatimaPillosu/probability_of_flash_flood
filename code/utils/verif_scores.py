@@ -76,8 +76,16 @@ def contingency_table_probabilistic(obs, prob, num_em):
 
 
 ########################
-def frequency_bias(h, fa, m):
+def frequency_bias_prob(h, fa, m):
       fb = (h + fa) / (h + m)
+      return fb
+
+
+########################
+def frequency_bias_overall(obs, prob,):
+      yes_fc = np.sum(prob > 0)
+      yes_obs = np.sum(obs > 0)
+      fb = yes_fc / yes_obs
       return fb
 
 

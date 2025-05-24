@@ -1,9 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.ticker import ScalarFormatter
+from matplotlib.ticker import ScalarFormatter, LogLocator
 
 ##################################
-def roc_curve_ci(rp, hr, far, aroc, fb, alpha, file_out):
+def roc_curve_ci(rp, rp_colour, hr, far, aroc, fb, alpha, file_out):
 
       # Read the hit rate, false alarm rate, and area under the roc curve for the original dataset
       hr_real = hr[0,:]
@@ -44,16 +44,16 @@ def roc_curve_ci(rp, hr, far, aroc, fb, alpha, file_out):
 
       # Create the plot of the roc curve with frequency bias and aroc
       fig, ax = plt.subplots(figsize=(5, 5))
-      ax.plot(far_real, hr_real, "-o", markersize=2, color="dodgerblue", lw = 1, label = f"AROC = {aroc_real:.3f}")
-      ax.fill(x_poly, y_poly, color='dodgerblue', alpha=0.2, label=f"{alpha}% confidence interval\nAROC ({aroc_ci_lower:.3f} , {aroc_ci_upper:.3f})", edgecolor='none')
-      plt.plot(fb_prob_1_x, fb_prob_1_y, "o", markersize=4, color = "darkorange")
-      plt.plot(fb_1_x, fb_1_y, "o", markersize=4, color = "crimson")
-      plt.plot([-0.01,1.01], [-0.01,1.01],  "--", color="darkgrey", lw = 1)
+      ax.plot(far_real, hr_real, "-o", markersize=2, color=rp_colour, lw = 1, label = f"AROC = {aroc_real:.3f}")
+      ax.fill(x_poly, y_poly, color=rp_colour, alpha=0.2, label=f"{alpha}% confidence interval\nAROC ({aroc_ci_lower:.3f} , {aroc_ci_upper:.3f})", edgecolor='none')
+      plt.plot(fb_prob_1_x, fb_prob_1_y, "s", markersize=6, color = "#333333")
+      plt.plot(fb_1_x, fb_1_y, "D", markersize=6, color = "#333333")
+      plt.plot([-0.02,1.02], [-0.02,1.02],  "--", color="darkgrey", lw = 1)
 
-      ax.text(0.04, 0.85, f'FB[prob<=23%] = 28.00\nFB[prob<=23%] = 28.00\nFB[prob<=23%] = 28.00', color = "white", bbox=dict(facecolor='white', edgecolor='#333333', boxstyle='square, pad=0.4', linewidth=0.5))
+      ax.text(0.04, 0.85, f'       FB[prob<=23%] = 28.00\nFB[prob<=23%] = 28.00\nFB[prob<=23%] = 28.00', color = "white", bbox=dict(facecolor='white', edgecolor='#333333', boxstyle='square, pad=0.4', linewidth=0.5))
 
-      ax.text(0.05, 0.92, f"FB[prob<={ind_prob_1}%] = {fb_prob_1:.2f}", fontsize=10, color='darkorange')
-      ax.text(0.05, 0.86, f"FB[prob<={ind_fb_1}%] = {fb_1:.2f}", fontsize=10, color='crimson')
+      ax.text(0.06, 0.92, f" ■ FB[prob<={ind_prob_1}%] = {fb_prob_1:.2f}", fontsize=10, color='#333333')
+      ax.text(0.06, 0.86, f" ◆ FB[prob<={ind_fb_1}%] = {fb_1:.2f}", fontsize=10, color='#333333')
       
       ax.set_title(f"tp > {rp}-year return period", color='#333333', fontweight='bold', pad = 30, fontsize = 10)
       ax.set_xlabel("False Alarm Rate [-]", color='#333333')
@@ -62,8 +62,8 @@ def roc_curve_ci(rp, hr, far, aroc, fb, alpha, file_out):
       for text in legend.get_texts():
             text.set_color('#333333')
       
-      plt.xlim([-0.01,1.01])
-      plt.ylim([-0.01,1.01])
+      plt.xlim([-0.02,1.02])
+      plt.ylim([-0.02,1.02])
       ax.spines['bottom'].set_color('darkgrey')
       ax.spines['left'].set_color('darkgrey')
       ax.spines['top'].set_color('darkgrey')
@@ -78,7 +78,7 @@ def roc_curve_ci(rp, hr, far, aroc, fb, alpha, file_out):
 
 
 #####################################################
-def reliability_diagram_ci(rp, prob_fc, freq_obs, sharpness, alpha, file_out):
+def reliability_diagram_ci(rp, rp_colour, prob_fc, freq_obs, sharpness, alpha, file_out):
 
       # Read the probabilities for the forecasts and the observational frequencies for the original dataset
       prob_fc_real = prob_fc[0,:]
@@ -103,8 +103,8 @@ def reliability_diagram_ci(rp, prob_fc, freq_obs, sharpness, alpha, file_out):
 
       # Create the plot for the reliability diagram (main plot)
       fig, ax = plt.subplots(figsize=(5, 5))
-      ax.plot(prob_fc_real, freq_obs_real, color="dodgerblue", lw = 1, label = "Reliability diagram")
-      ax.fill(x_poly, y_poly, color='dodgerblue', alpha=0.2, edgecolor='none', label = f"{alpha}% confidence interval")
+      ax.plot(prob_fc_real, freq_obs_real, color=rp_colour, lw = 1, label = "Reliability diagram")
+      ax.fill(x_poly, y_poly, color=rp_colour, alpha=0.2, edgecolor='none', label = f"{alpha}% confidence interval")
       ax.plot([-1,101], [-1,101],  "--", color="darkgrey", lw = 1)
       
       ax.set_title(f"tp > {rp}-year return period", color='#333333', fontweight='bold', pad = 25, fontsize = 10)
@@ -125,8 +125,8 @@ def reliability_diagram_ci(rp, prob_fc, freq_obs, sharpness, alpha, file_out):
       ax.grid(True, color='gainsboro', linewidth=0.3)
      
       # Create the plot for sharpness (inset plot)
-      inset_ax = fig.add_axes([0.22, 0.63, 0.35, 0.20])
-      inset_ax.plot(np.arange(len(sharpness_real)), sharpness_real, color="dodgerblue", lw = 1)
+      inset_ax = fig.add_axes([0.22, 0.615, 0.35, 0.23])
+      inset_ax.plot(np.arange(len(sharpness_real)), sharpness_real, color=rp_colour, lw = 1)
 
       inset_ax.set_title("Sharpness", fontsize=8, fontweight='bold', pad=3)
       inset_ax.set_xlabel("Forecast Probability [%]", fontsize=8, labelpad=2)
@@ -143,6 +143,10 @@ def reliability_diagram_ci(rp, prob_fc, freq_obs, sharpness, alpha, file_out):
       inset_ax.tick_params(axis='both', labelsize=8)
       inset_ax.yaxis.get_offset_text().set_fontsize(8)
       inset_ax.set_xlim(-1, 101)
+      inset_ax.set_ylim(1e0, 10 ** np.ceil(np.log10(np.sum(sharpness_real)))) 
+      ax.yaxis.set_major_locator(LogLocator(base=10.0, subs=None))
+      ax.yaxis.set_major_formatter(ScalarFormatter())
+      ax.yaxis.set_minor_formatter(plt.NullFormatter())
 
       inset_ax.spines['bottom'].set_color('darkgrey')
       inset_ax.spines['left'].set_color('darkgrey')
@@ -156,3 +160,139 @@ def reliability_diagram_ci(rp, prob_fc, freq_obs, sharpness, alpha, file_out):
       # Saving the plot
       plt.savefig(file_out, dpi = 1000)
       plt.close()
+
+
+##############################
+def aroc_ci(rp_list, rp_colour_list, aroc, alpha, file_out):
+
+      fig, ax = plt.subplots(figsize=(5, 5))
+
+      for ind_rp, rp in enumerate(rp_list):
+
+            aroc_rp = aroc[:, :, ind_rp]
+            rp_colour = rp_colour_list[ind_rp]
+
+            # Extracting the original aroc values
+            aroc_original = aroc_rp[:,0]
+            m = aroc_original.shape[0]
+
+            # Computing the confidence intervals
+            cl_lower = (100 - alpha) / 2
+            cl_upper = (100 + alpha) / 2 
+            aroc_ci_lower = np.percentile(aroc_rp[:,1:], cl_lower, axis=1)
+            aroc_ci_upper = np.percentile(aroc_rp[:,1:], cl_upper, axis=1)
+
+            # Creating the plot
+            ax.plot(np.arange(m), aroc_original, color=rp_colour, lw = 1)
+            ax.fill_between(np.arange(m), aroc_ci_lower, aroc_ci_upper, color=rp_colour, alpha=0.2, edgecolor='none')
+      
+      ax.plot([-0.1, m + 0.1], [0.5, 0.5], "--", color="#333333", lw = 1)
+
+      ax.set_xlabel("Lead Times [Days]", color='#333333')
+      ax.set_ylabel("AROC [-] ", color='#333333')
+
+      plt.xlim([-0.1, m - 1 + 0.1])
+      plt.ylim([0.4,1])
+      ax.spines['bottom'].set_color('darkgrey')
+      ax.spines['left'].set_color('darkgrey')
+      ax.spines['top'].set_color('darkgrey')
+      ax.spines['right'].set_color('darkgrey')
+      ax.tick_params(axis='x', colors='#333333') 
+      ax.tick_params(axis='y', colors='#333333')  
+      ax.grid(True, color='gainsboro', linewidth=0.3)
+
+      # Saving the plot
+      plt.savefig(file_out, dpi = 1000)
+      plt.close()
+
+
+##############################
+def fb_ci(rp_list, rp_colour_list, fb, alpha, file_out):
+
+      fig, ax = plt.subplots(figsize=(5, 5))
+
+      for ind_rp, rp in enumerate(rp_list):
+
+            fb_rp = fb[:, :, ind_rp]
+            rp_colour = rp_colour_list[ind_rp]
+
+            # Extracting the original aroc values
+            fb_original = fb_rp[:,0]
+            m = fb_original.shape[0]
+
+            # Computing the confidence intervals
+            cl_lower = (100 - alpha) / 2
+            cl_upper = (100 + alpha) / 2 
+            fb_ci_lower = np.percentile(fb_rp[:,1:], cl_lower, axis=1)
+            fb_ci_upper = np.percentile(fb_rp[:,1:], cl_upper, axis=1)
+
+            # Creating the plot
+            ax.plot(np.arange(m), fb_original, color=rp_colour, lw = 1)
+            ax.fill_between(np.arange(m), fb_ci_lower, fb_ci_upper, color=rp_colour, alpha=0.2, edgecolor='none')
+      
+      ax.plot([-0.1, m + 0.1], [1, 1], "--", color="#333333", lw = 1)
+
+      ax.set_xlabel("Lead Times [Days]", color='#333333')
+      ax.set_ylabel("FB [-] ", color='#333333')
+
+      plt.xlim([-0.1, m - 1 + 0.1])
+      plt.ylim([0,80])
+      ax.spines['bottom'].set_color('darkgrey')
+      ax.spines['left'].set_color('darkgrey')
+      ax.spines['top'].set_color('darkgrey')
+      ax.spines['right'].set_color('darkgrey')
+      ax.tick_params(axis='x', colors='#333333') 
+      ax.tick_params(axis='y', colors='#333333')  
+      ax.grid(True, color='gainsboro', linewidth=0.3)
+
+      # Saving the plot
+      plt.savefig(file_out, dpi = 1000)
+      plt.close()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

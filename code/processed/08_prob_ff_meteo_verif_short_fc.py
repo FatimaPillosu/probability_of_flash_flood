@@ -6,7 +6,8 @@ import metview as mv
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from utils.verif_scores import (reliability_diagram, 
                                                       contingency_table_probabilistic, 
-                                                      frequency_bias, 
+                                                      frequency_bias_prob, 
+                                                      frequency_bias_overall,
                                                       hit_rate, 
                                                       false_alarm_rate, 
                                                       aroc_trapezium
@@ -27,7 +28,7 @@ from sklearn.metrics import roc_curve, roc_auc_score
 
 # Usage: python3 08_prob_ff_meteo_verif_short_fc.py
 
-# Runtime: ~ 1.5 hours.
+# Runtime: ~ 3.5 hours for 1000 repetitions.
 
 # Author: Fatima M. Pillosu <fatima.pillosu@ecmwf.int> | ORCID 0000-0001-8127-0990
 # License: Creative Commons Attribution-NonCommercial_ShareAlike 4.0 International
@@ -110,6 +111,7 @@ num_dates = ff_original.shape[0]
 hr_bs = []
 far_bs = []
 fb_bs = []
+fb_prob_bs = []
 aroc_bs = []
 hr_sl_bs = []
 far_sl_bs = []
@@ -139,11 +141,14 @@ for ind_bs in range(num_bs + 1):
       mean_freq_obs_bs.append(mean_freq_obs)
       sharpness_bs.append(sharpness)
 
+      # Computing the overall frequency bias
+      fb_bs.append( frequency_bias_overall(ff_bs, prob_bs) )
+
       # Computing the contingency table
       h, fa, m, cn = contingency_table_probabilistic(ff_bs, prob_bs, num_em)      
 
-      # Computing the frequency bias
-      fb_bs.append(frequency_bias(h, fa, m))
+      # Computing the frequency bias for each probability threshold
+      fb_prob_bs.append(frequency_bias_prob(h, fa, m))
 
       # Computing the roc curves and the area under the roc
       hr = hit_rate(h,m)
@@ -166,6 +171,7 @@ np.save(f'{dir_out_temp}/mean_prob_fc.npy', np.array(mean_prob_fc_bs))
 np.save(f'{dir_out_temp}/mean_freq_obs.npy', np.array(mean_freq_obs_bs))
 np.save(f'{dir_out_temp}/sharpness.npy', np.array(sharpness_bs))
 np.save(f'{dir_out_temp}/fb.npy', np.array(fb_bs))
+np.save(f'{dir_out_temp}/fb_prob.npy', np.array(fb_prob_bs))
 np.save(f'{dir_out_temp}/hr.npy', np.array(hr_bs))
 np.save(f'{dir_out_temp}/far.npy', np.array(far_bs))
 np.save(f'{dir_out_temp}/aroc.npy', np.array(aroc_bs))

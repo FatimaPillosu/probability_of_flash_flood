@@ -13,7 +13,7 @@ from utils.plots import roc_curve_ci, reliability_diagram_ci
 #     - roc curve (breakdown discrimination ability)
 #     - area under the roc curve (overall discrimination ability)
 
-# Usage: python3 19_prob_ff_meteo_verif_long_fc.py 2024
+# Usage: python3 19_prob_ff_meteo_verif_long_fc.py
 
 # Runtime: negligible.
 
@@ -22,6 +22,7 @@ from utils.plots import roc_curve_ci, reliability_diagram_ci
 
 # INPUT PARAMETERS DESCRIPTION
 # rp_list (list of integers): list of rainfall thresholds expressed as return periods (in years).
+# rp_colour_list (list of integers): list of colours to associate with each return period.
 # step_f_start (integer, hours): first final step to consider for the accumulation period.
 # step_f_final (integer, hours): final final step to consider for the accumulation period.
 # step_disc (integer, hours): discretisation to consider for step_f.
@@ -33,6 +34,7 @@ from utils.plots import roc_curve_ci, reliability_diagram_ci
 #############################################################################################################
 # INPUT PARAMETERS
 rp_list = [1, 5, 10, 20, 50, 100]
+rp_colour_list = ["crimson", "darkviolet", "yellowgreen", "dodgerblue", "mediumblue", "teal"]
 step_f_start = 24
 step_f_final = 120
 step_disc = 24
@@ -44,7 +46,9 @@ dir_out = "data/plot/19_prob_ff_meteo_verif_long_fc"
 
 
 # Plotting the verification scores 
-for rp in rp_list:
+for ind_rp, rp in enumerate(rp_list):
+
+      rp_colour = rp_colour_list[ind_rp]
 
       for step_f in range(step_f_start, step_f_final + 1, step_disc):
 
@@ -59,13 +63,13 @@ for rp in rp_list:
             hr = np.load(f'{dir_in_temp}/hr.npy')
             far = np.load(f'{dir_in_temp}/far.npy')
             aroc = np.load(f'{dir_in_temp}/aroc.npy')
-            fb = np.load(f'{dir_in_temp}/fb.npy')
+            fb = np.load(f'{dir_in_temp}/fb_prob.npy')
             file_out = f'{dir_out_temp}/roc.png'
-            roc_curve_ci(rp, hr, far, aroc, fb, alpha, file_out)
+            roc_curve_ci(rp, rp_colour, hr, far, aroc, fb, alpha, file_out)
 
             # Plot the reliability diagram
             mean_prob_fc =  np.load(f'{dir_in_temp}/mean_prob_fc.npy')
             mean_freq_obs =  np.load(f'{dir_in_temp}/mean_freq_obs.npy') * 100
             sharpness = np.load(f'{dir_in_temp}/sharpness.npy')
             file_out = f'{dir_out_temp}/reliability_diagram.png'
-            reliability_diagram_ci(rp, mean_prob_fc, mean_freq_obs, sharpness, alpha, file_out)
+            reliability_diagram_ci(rp, rp_colour, mean_prob_fc, mean_freq_obs, sharpness, alpha, file_out)
