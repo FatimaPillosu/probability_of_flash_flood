@@ -179,7 +179,7 @@ for ind_ml, ml_trained in enumerate(ml_trained_list):
             plt.xticks([0, 0.25, 0.5, 0.75, 1], ["0", "0.25", "0.5", "0.75", "1"])
             plt.yticks([0, 0.25, 0.5, 0.75, 1], ["0", "0.25", "0.5", "0.75", "1"])
             plt.tick_params(axis='x', colors='#333333', labelsize=10)
-            plt.tick_params(axis='y', colors='#333333', labelsize=10)
+            plt.tick_params(axis='y', colors ='#333333', labelsize=10)
             plt.xlim([-0.05, 1.05])
             plt.ylim([-0.05, 1.05])
             plt.grid(linewidth=0.5, color='gainsboro')
