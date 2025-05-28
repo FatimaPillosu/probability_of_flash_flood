@@ -27,8 +27,8 @@ import metview as mv
 
 #######################################################################
 # INPUT PARAMETERS
-year_s = 2001
-year_f = 2020
+year_s = 2021
+year_f = 2024
 step_f_start = 24
 step_f_final = 120
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
@@ -45,7 +45,7 @@ lats_mask = mv.latitudes(mask)[ind_mask]
 lons_mask = (mv.longitudes(mask) - 360)[ind_mask]
 num_gp_mask = ind_mask.shape[0]
 
-# Merging the years in the considered period for the considered lead time
+# Merging the pdt for the considered lead time
 for step_f in range(step_f_start, step_f_final + 1, 24):
 
       # Merging the years in the considered period
@@ -56,7 +56,7 @@ for step_f in range(step_f_start, step_f_final + 1, 24):
             print(f" -  for {year} and t+{step_f}")
 
             # Reading the pdt for specific years, select the variables to consider as predictors, and convert the dataframe to a 2-d numpy array
-            file_in = git_repo + "/" + dir_in + "/pdt_" + str(year) + ".csv"
+            file_in = git_repo + "/" + dir_in + "/pdt_" + str(year) + "_" + f"{step_f:03d}" + ".csv"
             pdt_temp = pd.read_csv(file_in)
 
             # Converting the counts of point flash flood reports in each grid-box into a binary value (i.e., 0 when there are no reports in the grid-box and 1 when there is at least one report)
@@ -79,5 +79,5 @@ for step_f in range(step_f_start, step_f_final + 1, 24):
       dir_out_temp = git_repo + "/" + dir_out
       if not os.path.exists(dir_out_temp):
             os.makedirs(dir_out_temp)
-      file_out = dir_out_temp + "/pdt_" + str(year_s) + "_" + str(year_f) + ".csv"
+      file_out = dir_out_temp + "/pdt_" + str(year_s) + "_" + str(year_f) + "_" + f"{step_f:03d}" + ".csv"
       pdt_all.to_csv(file_out, index=False)
