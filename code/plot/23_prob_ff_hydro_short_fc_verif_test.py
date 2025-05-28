@@ -133,38 +133,55 @@ os.makedirs(dir_out_temp, exist_ok=True)
 # plt.savefig(f'{dir_out_temp}/fold_times.png', dpi=1000)
 # plt.close
 
-
-# # Plotting the roc curves
-# for ind_ml, ml_trained in enumerate(ml_trained_list):
+# Plotting the roc curves
+for ind_ml, ml_trained in enumerate(ml_trained_list):
       
-#       colours_ml_trained = colours_ml_trained_list[ind_ml]
+      dir_in_temp = f'{git_repo}/{dir_in}/{ml_trained}'
       
-#       plt.figure(figsize=(6, 6))
-#       dir_in_temp = f'{git_repo}/{dir_in}/{ml_trained}'
+      test_scores_train = np.load(f'{dir_in_temp}/test_scores_train.npy')
+      recall_train = test_scores_train[0]
+      f1_train = test_scores_train[1]
+      yes_thr_train = test_scores_train[3]
+      print(f"Training dataset - recall: {recall_train:.3f}, f1-score: {f1_train:.3f}, yes-event threshold: {yes_thr_train:.3f}")
+
+      test_scores_test = np.load(f'{dir_in_temp}/test_scores_test.npy')
+      recall_test = test_scores_test[0]
+      f1_test = test_scores_test[1]
+      yes_thr_test = test_scores_test[3]
+      print(f"Test dataset - recall: {recall_test:.3f}, f1-score: {f1_test:.3f}, yes-event threshold: {yes_thr_test:.3f}")
+
+
+# Plotting the roc curves
+for ind_ml, ml_trained in enumerate(ml_trained_list):
       
-#       hr_train = np.load(f'{dir_in_temp}/hr_train.npy')
-#       far_train = np.load(f'{dir_in_temp}/far_train.npy')
-#       aroc_train = np.load(f'{dir_in_temp}/test_scores_train.npy')[2]
-#       plt.plot(far_train, hr_train, "-", color=colours_ml_trained, lw = 2, label = f"Train dataset (AROC = {aroc_train:.3f})")
+      colours_ml_trained = colours_ml_trained_list[ind_ml]
+      
+      plt.figure(figsize=(6, 6))
+      dir_in_temp = f'{git_repo}/{dir_in}/{ml_trained}'
+      
+      hr_train = np.load(f'{dir_in_temp}/hr_train.npy')
+      far_train = np.load(f'{dir_in_temp}/far_train.npy')
+      aroc_train = np.load(f'{dir_in_temp}/test_scores_train.npy')[2]
+      plt.plot(far_train, hr_train, "-", color=colours_ml_trained, lw = 2, label = f"Train dataset (AROC = {aroc_train:.3f})")
 
-#       hr_test = np.load(f'{dir_in_temp}/hr_test.npy')
-#       far_test = np.load(f'{dir_in_temp}/far_test.npy')
-#       aroc_test = np.load(f'{dir_in_temp}/test_scores_test.npy')[2]
-#       plt.plot(far_test, hr_test, "--", color=colours_ml_trained, lw = 2, label = f"Test dataset (AROC = {aroc_test:.3f})")
+      hr_test = np.load(f'{dir_in_temp}/hr_test.npy')
+      far_test = np.load(f'{dir_in_temp}/far_test.npy')
+      aroc_test = np.load(f'{dir_in_temp}/test_scores_test.npy')[2]
+      plt.plot(far_test, hr_test, "--", color=colours_ml_trained, lw = 2, label = f"Test dataset (AROC = {aroc_test:.3f})")
 
-#       plt.plot([0,1], [0,1], color="#333333", lw = 0.5)
-#       plt.title("ROC curve", fontweight='bold', color="#333333", fontsize=14, pad = 25)
-#       plt.xlabel("False alarm rate", color = "#333333", fontsize = 12)
-#       plt.ylabel("Hit rate", color = "#333333", fontsize = 12)
-#       plt.tick_params(axis='x', colors='#333333', labelsize=12)
-#       plt.tick_params(axis='y', colors='#333333', labelsize=12)
-#       plt.xlim([-0.05, 1.05])
-#       plt.ylim([-0.05, 1.05])
-#       plt.legend(loc='upper center', labelcolor='#333333', fontsize=10, bbox_to_anchor=(0.5, 1.06), ncol=2, frameon=False)
-#       plt.grid(linewidth=0.5, color='gainsboro')
-#       plt.tight_layout()
-#       plt.savefig(f'{dir_out_temp}/roc_curve_{ml_trained}.png', dpi=1000)
-#       plt.close
+      plt.plot([0,1], [0,1], color="#333333", lw = 0.5)
+      plt.title("ROC curve", fontweight='bold', color="#333333", fontsize=14, pad = 25)
+      plt.xlabel("False alarm rate", color = "#333333", fontsize = 12)
+      plt.ylabel("Hit rate", color = "#333333", fontsize = 12)
+      plt.tick_params(axis='x', colors='#333333', labelsize=12)
+      plt.tick_params(axis='y', colors='#333333', labelsize=12)
+      plt.xlim([-0.05, 1.05])
+      plt.ylim([-0.05, 1.05])
+      plt.legend(loc='upper center', labelcolor='#333333', fontsize=10, bbox_to_anchor=(0.5, 1.06), ncol=2, frameon=False)
+      plt.grid(linewidth=0.5, color='gainsboro')
+      plt.tight_layout()
+      plt.savefig(f'{dir_out_temp}/roc_curve_{ml_trained}.png', dpi=1000)
+      plt.close
 
 
 # Plotting the reliability diagrams
@@ -192,8 +209,5 @@ for ind_ml, ml_trained in enumerate(ml_trained_list):
       plt.legend(loc='upper center', labelcolor='#333333', fontsize=10, bbox_to_anchor=(0.5, 1.06), ncol=2, frameon=False)
       plt.grid(linewidth=0.5, color='gainsboro')
       plt.tight_layout()
-      plt.show()
-      exit()
-
       plt.savefig(f'{dir_out_temp}/reliability_diagram_{ml_trained}.png', dpi=1000)
       plt.close()
