@@ -19,8 +19,7 @@ import metview as mv
 
 # INPUT PARAMETERS DESCRIPTION
 # year (integer, in YYYY format): year to consider.
-# step_f_start (integer, in hours): first final step of the accumulation period to consider. 
-# step_f_final (integer, in hours): last final step of the accumulation period to consider. 
+# step_f (integer, in hours): final step of the accumulation period to consider. 
 # delta (float, positive): radius of the area  around the considered grid-box.
 # git_repo (string): repository's local path
 # file_in_mask (string): relative path of the file containing the domain's mask.
@@ -36,8 +35,7 @@ import metview as mv
 ################################################################################################
 # INPUT PARAMETERS
 year = int(sys.argv[1])
-step_f_start = 24
-step_f_final = 120
+step_f = int(sys.argv[2])
 delta = 0.5
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
 file_in_mask = "data/raw/mask/usa_era5.grib"
@@ -102,109 +100,106 @@ area = area_global[ind_mask]
 print(" - Reading the sdfor values within the considered domain")
 sdfor = mv.values(mv.read(git_repo + "/" + file_in_sdfor))[ind_mask]
 
-# Creating the point data table for different lead times
-for step_f in range(step_f_start, step_f_final + 1, 24):
+# Initializing the variables that contain the predictors that change over different accumulation periods
+base_date_all = np.array([]) 
+base_time_all = np.array([]) 
+step_f_all = np.array([]) 
+lats_all = np.array([]) 
+lons_all = np.array([]) 
+ff_all = np.array([])
+tp_greater_0_all  = np.array([])
+tp_prob_1_all = np.array([])
+tp_prob_50_all = np.array([])
+tp_prob_max_1_adj_gb_all = np.array([])
+tp_prob_max_50_adj_gb_all = np.array([])
+swvl_all = np.array([])
+sdfor_all = np.array([])
+lai_all = np.array([])
 
-      # Initializing the variables that contain the predictors that change over different accumulation periods
-      base_date_all = np.array([]) 
-      base_time_all = np.array([]) 
-      step_f_all = np.array([]) 
-      lats_all = np.array([]) 
-      lons_all = np.array([]) 
-      ff_all = np.array([])
-      tp_greater_0_all  = np.array([])
-      tp_prob_1_all = np.array([])
-      tp_prob_50_all = np.array([])
-      tp_prob_max_1_adj_gb_all = np.array([])
-      tp_prob_max_50_adj_gb_all = np.array([])
-      swvl_all = np.array([])
-      sdfor_all = np.array([])
-      lai_all = np.array([])
+# Creating the point data table
+base_date_s = datetime(year, 1, 1, 0)
+base_date_f = datetime(year, 12, 31, 0)
+base_date = base_date_s
+while base_date <= base_date_f:
 
-      # Creating the point data table
-      base_date_s = datetime(year, 1, 1, 0)
-      base_date_f = datetime(year, 12, 31, 0)
-      base_date = base_date_s
-      while base_date <= base_date_f:
-
-            print(" - Reading the predictand (flash flood reports) and the predictors (e.g. rainfall probabilities, swvl, slor, sdfor, and lai) for " + base_date.strftime("%Y%m%d"))
+      print(" - Reading the predictand (flash flood reports) and the predictors (e.g. rainfall probabilities, swvl, slor, sdfor, and lai) for " + base_date.strftime("%Y%m%d"))
+      
+      # Reading the flash flood reports
+      vt = base_date + timedelta(hours = step_f)
+      file_in_ff = git_repo + "/" + dir_in_ff + "/" + vt.strftime("%Y") + "/grid_acc_reports_ff_" + vt.strftime("%Y%m%d") + "_" + vt.strftime("%H")  + ".grib"
+      
+      if os.path.exists(file_in_ff): # building the point data table only for those days with some flash flood reports in the domain
             
-            # Reading the flash flood reports
-            vt = base_date + timedelta(hours = step_f)
-            file_in_ff = git_repo + "/" + dir_in_ff + "/" + vt.strftime("%Y") + "/grid_acc_reports_ff_" + vt.strftime("%Y%m%d") + "_" + vt.strftime("%H")  + ".grib"
+            ff = mv.values(mv.read(file_in_ff))[ind_mask]
             
-            if os.path.exists(file_in_ff): # building the point data table only for those days with some flash flood reports in the domain
-                  
-                  ff = mv.values(mv.read(file_in_ff))[ind_mask]
-                  
-                  # Reading the rainfall totals from ERA5-ecPoint and selecting the grid-boxes with zero rainfall totals
-                  file_in_tp = git_repo + "/" + dir_in_tp + "/" + base_date.strftime("%Y%m") + "/Pt_BC_PERC_" + base_date.strftime("%Y%m%d") + "_" + f"{step_f:03d}" + ".grib2"
-                  tp_greater_0 = mv.values((mv.sum(mv.read(file_in_tp)) > 0))[ind_mask]
-                  
-                  # Reading the rainfall probabilities of exceeding a certain return period
-                  file_in_tp_prob_1 = git_repo + "/" + dir_in_tp_prob + "/" + str(1) + "rp/" + base_date.strftime("%Y%m") + "/prob_exceed_rp_" + base_date.strftime("%Y%m%d") + "_" + base_date.strftime("%H") + "_" + f"{step_f:03d}" + ".grib"
-                  tp_prob_1_temp = mv.values(mv.read(file_in_tp_prob_1))
-                  tp_prob_1 = tp_prob_1_temp[ind_mask]
-                  
-                  file_in_tp_prob_50 = git_repo + "/" + dir_in_tp_prob + "/" + str(50) + "rp/" + base_date.strftime("%Y%m") + "/prob_exceed_rp_" + base_date.strftime("%Y%m%d") + "_" + base_date.strftime("%H") + "_" + f"{step_f:03d}" + ".grib"
-                  tp_prob_50_temp = mv.values(mv.read(file_in_tp_prob_50))
-                  tp_prob_50 = tp_prob_50_temp[ind_mask]
+            # Reading the rainfall totals from ERA5-ecPoint and selecting the grid-boxes with zero rainfall totals
+            file_in_tp = git_repo + "/" + dir_in_tp + "/" + base_date.strftime("%Y%m") + "/Pt_BC_PERC_" + base_date.strftime("%Y%m%d") + "_" + f"{step_f:03d}" + ".grib2"
+            tp_greater_0 = mv.values((mv.sum(mv.read(file_in_tp)) > 0))[ind_mask]
+            
+            # Reading the rainfall probabilities of exceeding a certain return period
+            file_in_tp_prob_1 = git_repo + "/" + dir_in_tp_prob + "/" + str(1) + "rp/" + base_date.strftime("%Y%m") + "/prob_exceed_rp_" + base_date.strftime("%Y%m%d") + "_" + base_date.strftime("%H") + "_" + f"{step_f:03d}" + ".grib"
+            tp_prob_1_temp = mv.values(mv.read(file_in_tp_prob_1))
+            tp_prob_1 = tp_prob_1_temp[ind_mask]
+            
+            file_in_tp_prob_50 = git_repo + "/" + dir_in_tp_prob + "/" + str(50) + "rp/" + base_date.strftime("%Y%m") + "/prob_exceed_rp_" + base_date.strftime("%Y%m%d") + "_" + base_date.strftime("%H") + "_" + f"{step_f:03d}" + ".grib"
+            tp_prob_50_temp = mv.values(mv.read(file_in_tp_prob_50))
+            tp_prob_50 = tp_prob_50_temp[ind_mask]
 
-                  tp_prob_max_1_adj_gb = []
-                  tp_prob_max_50_adj_gb = []
-                  for i in range(len(ind_mask)):
-                        area_ind = area[i]
-                        tp_prob_max_1_adj_gb.append(np.max(tp_prob_1_temp[area_ind]))
-                        tp_prob_max_50_adj_gb.append(np.max(tp_prob_50_temp[area_ind]))
-                  tp_prob_max_1_adj_gb = np.array(tp_prob_max_1_adj_gb)
-                  tp_prob_max_50_adj_gb = np.array(tp_prob_max_50_adj_gb)
-                  
-                  # Reading swvl (percentage of water content in soil)
-                  file_in_swvl = git_repo + "/" + dir_in_swvl + "/" + base_date.strftime("%Y%m") + "/swvl_1m_" + base_date.strftime("%Y%m%d") + "_" + base_date.strftime("%H") + "_" + f"{step_f:03d}" + ".grib"
-                  swvl = mv.values(mv.read(file_in_swvl))[ind_mask]
+            tp_prob_max_1_adj_gb = []
+            tp_prob_max_50_adj_gb = []
+            for i in range(len(ind_mask)):
+                  area_ind = area[i]
+                  tp_prob_max_1_adj_gb.append(np.max(tp_prob_1_temp[area_ind]))
+                  tp_prob_max_50_adj_gb.append(np.max(tp_prob_50_temp[area_ind]))
+            tp_prob_max_1_adj_gb = np.array(tp_prob_max_1_adj_gb)
+            tp_prob_max_50_adj_gb = np.array(tp_prob_max_50_adj_gb)
+            
+            # Reading swvl (percentage of water content in soil)
+            file_in_swvl = git_repo + "/" + dir_in_swvl + "/" + base_date.strftime("%Y%m") + "/swvl_1m_" + base_date.strftime("%Y%m%d") + "_" + base_date.strftime("%H") + "_" + f"{step_f:03d}" + ".grib"
+            swvl = mv.values(mv.read(file_in_swvl))[ind_mask]
 
-                  # Reading lai (leaf area index)
-                  file_in_lai = git_repo + "/" + dir_in_lai  + "/lai_" + vt.strftime("%m%d") + ".grib"
-                  lai = mv.values(mv.read(file_in_lai))[ind_mask]
+            # Reading lai (leaf area index)
+            file_in_lai = git_repo + "/" + dir_in_lai  + "/lai_" + vt.strftime("%m%d") + ".grib"
+            lai = mv.values(mv.read(file_in_lai))[ind_mask]
 
-                  # Concatenating the predicant and predictors values for each day
-                  base_date_all = np.concatenate((base_date_all, np.array([base_date.strftime("%Y%m%d")] * lats.shape[0])))
-                  base_time_all = np.concatenate((base_time_all, np.array([base_date.strftime("%H")] * lats.shape[0])))
-                  step_f_all = np.concatenate((step_f_all, np.array([step_f] * lats.shape[0])))
-                  lats_all = np.concatenate((lats_all, lats))
-                  lons_all = np.concatenate((lons_all, lons))
-                  ff_all = np.concatenate((ff_all, ff))
-                  tp_greater_0_all = np.concatenate((tp_greater_0_all, tp_greater_0))
-                  tp_prob_1_all = np.concatenate((tp_prob_1_all, tp_prob_1))
-                  tp_prob_50_all = np.concatenate((tp_prob_50_all, tp_prob_50))
-                  tp_prob_max_1_adj_gb_all = np.concatenate((tp_prob_max_1_adj_gb_all, tp_prob_max_1_adj_gb))
-                  tp_prob_max_50_adj_gb_all = np.concatenate((tp_prob_max_50_adj_gb_all, tp_prob_max_50_adj_gb))
-                  swvl_all = np.concatenate((swvl_all, swvl))
-                  sdfor_all = np.concatenate((sdfor_all, sdfor))
-                  lai_all = np.concatenate((lai_all, lai))
+            # Concatenating the predicant and predictors values for each day
+            base_date_all = np.concatenate((base_date_all, np.array([base_date.strftime("%Y%m%d")] * lats.shape[0])))
+            base_time_all = np.concatenate((base_time_all, np.array([base_date.strftime("%H")] * lats.shape[0])))
+            step_f_all = np.concatenate((step_f_all, np.array([step_f] * lats.shape[0])))
+            lats_all = np.concatenate((lats_all, lats))
+            lons_all = np.concatenate((lons_all, lons))
+            ff_all = np.concatenate((ff_all, ff))
+            tp_greater_0_all = np.concatenate((tp_greater_0_all, tp_greater_0))
+            tp_prob_1_all = np.concatenate((tp_prob_1_all, tp_prob_1))
+            tp_prob_50_all = np.concatenate((tp_prob_50_all, tp_prob_50))
+            tp_prob_max_1_adj_gb_all = np.concatenate((tp_prob_max_1_adj_gb_all, tp_prob_max_1_adj_gb))
+            tp_prob_max_50_adj_gb_all = np.concatenate((tp_prob_max_50_adj_gb_all, tp_prob_max_50_adj_gb))
+            swvl_all = np.concatenate((swvl_all, swvl))
+            sdfor_all = np.concatenate((sdfor_all, sdfor))
+            lai_all = np.concatenate((lai_all, lai))
 
-            base_date = base_date + timedelta(hours=24)
+      base_date = base_date + timedelta(hours=24)
 
-      # Build the point data table as a pandas dataframe 
-      pdt = pd.DataFrame()
-      pdt["base_date"] = base_date_all
-      pdt["base_time"] = base_time_all
-      pdt["step_f"] = step_f_all.astype(int)
-      pdt["lat"] = lats_all.astype(float).round(3)
-      pdt["lon"] = lons_all.astype(float).round(3)
-      pdt["ff"] = ff_all.astype(int)
-      pdt["tp_greater_0"] = tp_greater_0_all.astype(int)
-      pdt["tp_prob_1"] = tp_prob_1_all.astype(float).round(2)
-      pdt["tp_prob_max_1_adj_gb"] = tp_prob_max_1_adj_gb_all.astype(float).round(2)
-      pdt["tp_prob_50"] = tp_prob_50_all.astype(float).round(2)
-      pdt["tp_prob_max_50_adj_gb"] = tp_prob_max_50_adj_gb_all.astype(float).round(2)
-      pdt["swvl"] = swvl_all.astype(float).round(2)
-      pdt["sdfor"] = sdfor_all.astype(float).round(2)
-      pdt["lai"] = lai_all.astype(float).round(2)
+# Build the point data table as a pandas dataframe 
+pdt = pd.DataFrame()
+pdt["base_date"] = base_date_all
+pdt["base_time"] = base_time_all
+pdt["step_f"] = step_f_all.astype(int)
+pdt["lat"] = lats_all.astype(float).round(3)
+pdt["lon"] = lons_all.astype(float).round(3)
+pdt["ff"] = ff_all.astype(int)
+pdt["tp_greater_0"] = tp_greater_0_all.astype(int)
+pdt["tp_prob_1"] = tp_prob_1_all.astype(float).round(2)
+pdt["tp_prob_max_1_adj_gb"] = tp_prob_max_1_adj_gb_all.astype(float).round(2)
+pdt["tp_prob_50"] = tp_prob_50_all.astype(float).round(2)
+pdt["tp_prob_max_50_adj_gb"] = tp_prob_max_50_adj_gb_all.astype(float).round(2)
+pdt["swvl"] = swvl_all.astype(float).round(2)
+pdt["sdfor"] = sdfor_all.astype(float).round(2)
+pdt["lai"] = lai_all.astype(float).round(2)
 
-      # Saving the point data table as a csv
-      print("Saving the point data table as a csv")
-      dir_out_temp = git_repo + "/" + dir_out
-      if not os.path.exists(dir_out_temp):
-            os.makedirs(dir_out_temp)
-      pdt.to_csv(dir_out_temp + "/pdt_" + str(year) + "_" + f"{step_f:03d}" + ".csv", index=False)
+# Saving the point data table as a csv
+print("Saving the point data table as a csv")
+dir_out_temp = git_repo + "/" + dir_out
+if not os.path.exists(dir_out_temp):
+      os.makedirs(dir_out_temp)
+pdt.to_csv(dir_out_temp + "/pdt_" + str(year) + "_" + f"{step_f:03d}" + ".csv", index=False)

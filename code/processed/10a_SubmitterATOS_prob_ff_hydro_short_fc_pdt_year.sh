@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #SBATCH --job-name=pdt_year_short_fc
-#SBATCH --output=LogATOS/pdt_year_short_fc-%J.out
-#SBATCH --error=LogATOS/pdt_year_short_fc-%J.out
+#SBATCH --output=log_atos/pdt_year_short_fc-%J.out
+#SBATCH --error=log_atos/pdt_year_short_fc-%J.out
 #SBATCH --cpus-per-task=64
 #SBATCH --mem=128G
 #SBATCH --time=2-00:00:00
