@@ -200,7 +200,12 @@ def build_final_model(model_name, fold_model_file, X_train, y_train, X_test, y_t
       recall = recall_score(y, y_pred)
       f1 = f1_score(y, y_pred)
 
-      test_scores = np.array([recall, f1, aroc, best_threshold])
+      ind_yes = np.where(y_pred == 1)[0]
+      yes_fc = ind_yes.shape[0]
+      yes_obs = np.sum(y[ind_yes])
+      fb =  yes_fc / yes_obs
+
+      test_scores = np.array([recall, f1, aroc, fb, best_threshold])
       np.save(dir_out + "/obs_freq_" + name, obs_freq)
       np.save(dir_out + "/fc_pred_" + name, fc_pred)
       np.save(dir_out + "/far_" + name, far)
@@ -229,7 +234,12 @@ def build_final_model(model_name, fold_model_file, X_train, y_train, X_test, y_t
       recall = recall_score(y, y_pred)
       f1 = f1_score(y, y_pred)
 
-      test_scores = np.array([recall, f1, aroc, best_threshold])
+      ind_yes = np.where(y_pred == 1)[0]
+      yes_fc = ind_yes.shape[0]
+      yes_obs = np.sum(y[ind_yes])
+      fb =  yes_fc / yes_obs
+
+      test_scores = np.array([recall, f1, aroc, fb, best_threshold])
       np.save(dir_out + "/obs_freq_" + name, obs_freq)
       np.save(dir_out + "/fc_pred_" + name, fc_pred)
       np.save(dir_out + "/far_" + name, far)
