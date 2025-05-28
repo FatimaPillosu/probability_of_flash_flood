@@ -25,7 +25,7 @@ import metview as mv
 
 #######################################################################
 # INPUT PARAMETERS
-year_s = 2024
+year_s = 2021
 year_f = 2024
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
 file_in_mask = "data/raw/mask/usa_era5.grib"
