@@ -136,7 +136,7 @@ while the_date_start <= the_date_start_f:
             ff = mv.values(mv.read(file_in_ff))[ind_mask]
             
             # Reading the rainfall totals from ERA5-ecPoint and selecting the grid-boxes with zero rainfall totals
-            file_in_tp = git_repo + "/" + dir_in_tp + "/" + the_date_final.strftime("%Y%m") + "/Pt_BC_PERC_" + the_date_final.strftime("%Y%m%d") + "_024.grib2"
+            file_in_tp = git_repo + "/" + dir_in_tp + "/" + the_date_final.strftime("%Y%m") + "/Pt_BC_PERC_" + the_date_start.strftime("%Y%m%d") + "_024.grib2"
             tp_greater_0 = mv.values((mv.sum(mv.read(file_in_tp)) > 0))[ind_mask]
             
             # Reading the rainfall probabilities of exceeding a certain return period
