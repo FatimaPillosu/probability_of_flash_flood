@@ -2,9 +2,9 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
-##############################################################################################################
+##########################################################################################################################################################
 # CODE DESCRIPTION
-# 22_prob_ff_hydro_short_fc_results_train_ml_cv_optuna.py plots the verification results of the training of diverse machine learning models
+# 23_prob_ff_hydro_short_fc_retrain_best_kfold.py plots the verification results for the best k-fold for the different data-driven models using the test data.
 # The following scores were computed:
 #     - reliability diagram (breakdown reliability score)
 #     - frequency bias (overall relaibility)
@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 # for the considered domain, we would have not been able to compute more than 100 bootstraps, a number that is well below the 
 # recommended standars of at least 1000 repetitions. 
 
-# Usage: python3 22_prob_ff_hydro_short_fc_results_train_ml_cv_optuna.py
+# Usage: python3 23_prob_ff_hydro_short_fc_retrain_best_kfold.py
 
 # Runtime: ~ 1 minute.
 
@@ -22,7 +22,6 @@ import matplotlib.pyplot as plt
 # License: Creative Commons Attribution-NonCommercial_ShareAlike 4.0 International
 
 # INPUT PARAMETERS DESCRIPTION
-# num_k_outer (positive integer): number of outer k-folds considered in the nested cross-validation.
 # ml_trained_list (list of strings): names of the models to train. Valid values are:
 #                                                                 - random_forest_xgboost
 #                                                                 - random_forest_lightgbm
@@ -36,15 +35,14 @@ import matplotlib.pyplot as plt
 # dir_in (string): relative path of the directory containing the verification results of the model trainings.
 # dir_out (string): relative path of the directory containing the plots for the considered verification scores.
 
-##############################################################################################################
+##########################################################################################################################################################
 # INPUT PARAMETERS
-num_k_outer = 5
-ml_trained_list = ["gradient_boosting_xgboost", "random_forest_xgboost", "random_forest_lightgbm", "gradient_boosting_lightgbm", "gradient_boosting_catboost","feed_forward_keras"]
-colours_ml_trained_list = ["mediumblue", "orangered", "limegreen", "crimson", "dodgerblue", "gold"]
+ml_trained_list = ["gradient_boosting_xgboost"]
+colours_ml_trained_list = ["mediumblue"]
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
-dir_in = "data/processed/12_prob_ff_hydro_short_fc_train_ml_cv_optuna"
-dir_out = "data/plot/22_prob_ff_hydro_short_fc_results_train_ml_cv_optuna"
-##############################################################################################################
+dir_in = "data/processed/13_prob_ff_hydro_short_fc_retrain_best_kfold_new"
+dir_out = "data/plot/23_prob_ff_hydro_short_fc_retrain_best_kfold"
+##########################################################################################################################################################
 
 
 # Creating the output directory
@@ -56,7 +54,7 @@ plt.figure(figsize=(6, 5))
 for ind_ml, ml_trained in enumerate(ml_trained_list):
       colours_ml_trained = colours_ml_trained_list[ind_ml]
       dir_in_temp = f'{git_repo}/{dir_in}/{ml_trained}'
-      recall = np.load(f'{dir_in_temp}/recall.npy')
+      recall = np.load(f'{dir_in_temp}/test_scores.npy')
       plt.plot(np.arange(len(recall)), recall, color=colours_ml_trained, lw = 2, label=ml_trained)
 plt.title("Recall", fontweight='bold', color="#333333", pad=60, fontsize=14)
 plt.xlabel("k_outer", color = "#333333", fontsize = 12)

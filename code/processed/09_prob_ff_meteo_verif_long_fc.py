@@ -3,6 +3,7 @@ import sys
 from datetime import datetime, timedelta
 import numpy as np
 import metview as mv
+from sklearn.metrics import roc_curve, roc_auc_score
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from utils.verif_scores import (reliability_diagram, 
                                                       contingency_table_probabilistic, 
@@ -12,7 +13,6 @@ from utils.verif_scores import (reliability_diagram,
                                                       false_alarm_rate, 
                                                       aroc_trapezium
                                                       )
-from sklearn.metrics import roc_curve, roc_auc_score
 
 ##############################################################################################################
 # CODE DESCRIPTION
