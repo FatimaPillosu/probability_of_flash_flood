@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 # Usage: python3 13_prob_ff_hydro_short_fc_retrain_best_kfold.py
 
-# Runtime: ~ 2 hours.
+# Runtime: ~ 10 minutes.
 
 # Author: Fatima M. Pillosu <fatima.pillosu@ecmwf.int> | ORCID 0000-0001-8127-0990
 # License: Creative Commons Attribution-NonCommercial_ShareAlike 4.0 International
@@ -54,13 +54,13 @@ logger = logging.getLogger(__name__)
 # INPUT PARAMETERS
 feature_cols = ["tp_prob_1", "tp_prob_50", "swvl", "sdfor", "lai"]
 target_col = "ff"
-model_2_train_list = ["feed_forward_keras", "gradient_boosting_xgboost", "gradient_boosting_lightgbm", "gradient_boosting_catboost", "random_forest_xgboost", "random_forest_lightgbm", ]
-best_kfold_list = [3, 1, 3, 1, 1, 1]
+model_2_train_list = ["gradient_boosting_xgboost"]
+best_kfold_list = [1]
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
 file_in_train = "data/processed/11_prob_ff_hydro_short_fc_combine_pdt/pdt_2001_2020.csv"
-file_in_test = "data/processed/11_prob_ff_hydro_short_fc_combine_pdt/pdt_2021_2023.csv"
-dir_in_model = "data/processed/12_prob_ff_hydro_short_fc_train_ml_cv_optuna"
-dir_out = "data/processed/13_prob_ff_hydro_short_fc_retrain_best_kfold"
+file_in_test = "data/processed/11_prob_ff_hydro_short_fc_combine_pdt/pdt_2021_2024.csv"
+dir_in_model = "data/processed/12_prob_ff_hydro_short_fc_train_ml_cv_optuna_new"
+dir_out = "data/processed/13_prob_ff_hydro_short_fc_retrain_best_kfold_new"
 ##################################################################################################
 
 
@@ -266,5 +266,5 @@ for ind_model in range(len(model_2_train_list)):
             model_ext = ".h5"
       else:
             model_ext = ".joblib"
-      file_in = git_repo + "/" + dir_in_model + "/" + model_2_train + "/model_" + str(kfold) + model_ext
+      file_in = git_repo + "/" + dir_in_model + "/" + model_2_train + "/model_rep1_fold" + str(kfold) + model_ext
       build_final_model(model_2_train, file_in, X_train, y_train, X_test, y_test, dir_out_temp)
