@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import joblib
+import pprint
 import shap
 import matplotlib.pyplot as plt
 
@@ -28,21 +29,22 @@ import matplotlib.pyplot as plt
 feature_cols = ["tp_prob_1", "tp_prob_50", "swvl", "sdfor", "lai"]
 target_col = "ff"
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
-file_in_model = "data/processed/13_prob_ff_hydro_short_fc_retrain_best_kfold/gradient_boosting_xgboost/model.joblib"
+file_in_model = "data/processed/13_prob_ff_hydro_short_fc_retrain_best_kfold_new/gradient_boosting_xgboost/model.joblib"
 file_in_pdt = "data/processed/11_prob_ff_hydro_short_fc_combine_pdt/pdt_2021_2024.csv"
 dir_out = "data/processed/15_prob_ff_hydro_long_fc_shap"
 #########################################################################################################
 
 
-# Upload the point data table
-print(f"\nUploading the point data table")
-df = pd.read_csv(git_repo + "/" + file_in_pdt)
-X = df[feature_cols].copy()
-y = df[target_col].copy()
-
 # Upload the considered model
 print("Upload the considered model")
 model = joblib.load(git_repo + "/" + file_in_model)
+
+# Upload the point data table
+print(f"\nUploading the point data table")
+df = pd.read_csv(git_repo + "/" + file_in_pdt)
+df = df.iloc[:1000]
+X = df[feature_cols].copy()
+y = df[target_col].copy()
 
 # Define the output directory and file
 dir_out_temp = git_repo + "/" + dir_out
@@ -61,4 +63,5 @@ else: # read
 
 # Create and show the SHAP summary plot
 print("Create and show the SHAP summary plot")
-shap.summary_plot(shap_values, X, plot_type="bar")
+#shap.summary_plot(shap_values, X, plot_type="bar")
+shap.dependence_plot("sdfor", shap_values, X)

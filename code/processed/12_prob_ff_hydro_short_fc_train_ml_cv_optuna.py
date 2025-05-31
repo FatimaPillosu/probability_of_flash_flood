@@ -265,13 +265,15 @@ def inner_objective(trial, model_type, X_train, y_train, n_splits=5, n_repeats=1
                   n_splits=n_splits, 
                   n_repeats=n_repeats,
                   random_state=42)
+            
             auc_scores = []
 
             for train_idx, val_idx in kf.split(X_train, y_train):
 
                   X_trf, X_valf = X_train.iloc[train_idx], X_train.iloc[val_idx]
                   y_trf, y_valf = y_train.iloc[train_idx], y_train.iloc[val_idx]
-                  scaler = StandardScaler().fit(X_trf)
+                  
+                  scaler = StandardScaler().fit(X_trf) # standardisation of the features and target variables
                   X_trf = scaler.transform(X_trf)
                   X_valf = scaler.transform(X_valf)
 
@@ -306,16 +308,13 @@ def inner_objective(trial, model_type, X_train, y_train, n_splits=5, n_repeats=1
             n_repeats=n_repeats,
             random_state=42
             )
+      
       auc_scores = []
 
       for train_idx, val_idx in kf.split(X_train, y_train):
             
             X_tr, X_val = X_train.iloc[train_idx], X_train.iloc[val_idx]
             y_tr, y_val = y_train.iloc[train_idx], y_train.iloc[val_idx]
-
-            scaler = StandardScaler().fit(X_tr)
-            X_tr = scaler.transform(X_tr)
-            X_val = scaler.transform(X_val)
 
             model = build_model(model_type, trial)
 
@@ -425,12 +424,13 @@ def train_with_nested_cv_and_optuna(
 
             if model_type == 'feed_forward_keras':
                   final_model = build_model(model_type, fixed_trial, input_dim=X_train_outer.shape[1])
+                  scaler = StandardScaler().fit(X_train_outer)
+                  X_train_scaled = scaler.transform(X_train_outer)
+                  X_test_scaled = scaler.transform(X_test_outer)
             else:
                   final_model = build_model(model_type, fixed_trial)
-
-            scaler = StandardScaler().fit(X_train_outer)
-            X_train_scaled = scaler.transform(X_train_outer)
-            X_test_scaled = scaler.transform(X_test_outer)
+                  X_train_scaled = X_train_outer
+                  X_test_scaled = X_test_outer
 
             fold_logger.info("   · Fitting final model on outer-train subset…")
 
@@ -509,10 +509,15 @@ def train_with_nested_cv_and_optuna(
 
 ##############################################################################
 
+
 # Read the training dataset (point data table)
 logger.info(f"\n\nReading the training dataset")
 file_in_pdt = os.path.join(git_repo, file_in)
 X, y = load_data(file_in_pdt, feature_cols, target_col)
+
+
+
+
 
 # Train the considered machine learning models
 for model_2_train in model_2_train_list:
