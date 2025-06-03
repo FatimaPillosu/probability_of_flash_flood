@@ -1,8 +1,8 @@
 import os
-import time
 import logging
 import inspect
 from typing import List, Tuple
+import json
 import numpy as np
 import pandas as pd
 import optuna
@@ -14,7 +14,7 @@ from optuna.integration import (
 )
 from optuna.trial import FixedTrial
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import RepeatedStratifiedKFold
+from sklearn.model_selection import RepeatedStratifiedKFold, StratifiedShuffleSplit
 from sklearn.metrics import roc_curve, auc, recall_score, f1_score, precision_recall_curve
 from sklearn.calibration import calibration_curve
 from xgboost import XGBClassifier, XGBRFClassifier
@@ -58,10 +58,11 @@ import joblib
 # INPUT PARAMETERS
 feature_cols = ["tp_prob_1", "tp_prob_max_1_adj_gb", "tp_prob_50", "tp_prob_max_50_adj_gb", "swvl", "sdfor", "lai"]
 target_col = "ff"
-model_2_train_list = ["gradient_boosting_xgboost"]
+model_2_train_list = ["feed_forward_keras"]
+#model_2_train_list = ["gradient_boosting_xgboost", "random_forest_xgboost", "gradient_boosting_catboost", "gradient_boosting_lightgbm", "random_forest_lightgbm", "feed_forward_keras", "gradient_boosting_adaboost"]
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
 file_in = "data/processed/11_prob_ff_hydro_short_fc_combine_pdt/pdt_2001_2020.csv"
-dir_out = "data/compute/12_prob_ff_hydro_short_fc_train_ml_cv_optuna"
+dir_out = "data/processed/12_prob_ff_hydro_short_fc_train_ml_cv_optuna"
 ##################################################################################################
 
 
@@ -182,6 +183,7 @@ def build_lgb_rf(trial, *_):
             'feature_fraction': trial.suggest_float('feature_fraction', 0.6, 1.0),
             'boosting_type': 'rf',
             'objective': 'binary',
+            'force_row_wise': 'True',
             'random_state': 42
       }
       return LGBMClassifier(**params)
@@ -195,6 +197,7 @@ def build_lgb_gb(trial, *_):
             'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3),
             'boosting_type': 'gbdt',
             'objective': 'binary',
+            'force_row_wise': 'True',
             'random_state': 42
       }
       return LGBMClassifier(**params)
@@ -343,7 +346,6 @@ def inner_objective(trial, model_type, X_train, y_train, n_splits=5, n_repeats=1
                         y_tr,
                         eval_set=[(X_val, y_val)],
                         eval_metric="auc",
-                        verbose=False,
                         callbacks=[LightGBMPruningCallback(trial, "auc")],
                         )
 
@@ -374,7 +376,7 @@ def train_with_nested_cv_and_optuna(
       n_trials: int = 100,
       n_outer: int = 10,
       n_inner: int = 5,
-      n_repeats: int = 10
+      n_repeats: int = 5
       ):
       
       outer_cv = RepeatedStratifiedKFold(
@@ -388,7 +390,6 @@ def train_with_nested_cv_and_optuna(
       outer_recall = np.zeros(shape_scores)
       outer_auc  = np.zeros(shape_scores)
       outer_best_thresholds = np.zeros(shape_scores)
-      fold_times = np.zeros(shape_scores)
 
       logger.info("Finished reading data. Entering outer CV loop…")
 
@@ -418,6 +419,24 @@ def train_with_nested_cv_and_optuna(
                         ),
                   n_trials=n_trials,
                   )
+
+            # ---- SAVE TRIAL DATA FOR PLOTS ---- #
+            optuna_dir = os.path.join(dir_out, "optuna")
+            _make_dir_if_not_exists(optuna_dir)
+
+            df_trials = study.trials_dataframe()
+            df_trials["wall_secs"] = (
+                  df_trials["datetime_complete"] - df_trials["datetime_start"]
+            ).dt.total_seconds()
+            df_trials.to_csv(
+                  os.path.join(optuna_dir, f"trials_rep{rep+1}_fold{fold+1}.csv"), index=False
+            )
+            with open(
+                  os.path.join(optuna_dir, f"best_params_rep{rep+1}_fold{fold+1}.json"), "w"
+            ) as fp:
+                  json.dump(study.best_trial.params, fp, indent=2)
+            # ----------------------------------- #
+
             fold_logger.info(f"   · Optuna done. Best AUC={study.best_value:.3f}")
             best_params = study.best_params
             fixed_trial = FixedTrial(best_params)
@@ -434,7 +453,6 @@ def train_with_nested_cv_and_optuna(
 
             fold_logger.info("   · Fitting final model on outer-train subset…")
 
-            start_time = time.time()
             if model_type == 'feed_forward_keras':
                   early_stop = keras.callbacks.EarlyStopping(
                         monitor='val_loss',
@@ -454,7 +472,6 @@ def train_with_nested_cv_and_optuna(
             else:
                   final_model.fit(X_train_scaled, y_train_outer)
                   y_pred_prob = final_model.predict_proba(X_test_scaled)[:, 1]
-            end_time = time.time()
 
             precision, recall_array, thresholds = precision_recall_curve(y_test_outer, y_pred_prob)
             f1_curve = 2 * (precision * recall_array) / (precision + recall_array + 1e-6)
@@ -465,14 +482,12 @@ def train_with_nested_cv_and_optuna(
             outer_f1[rep, fold] = f1_score(y_test_outer, y_pred_outer)
             outer_auc[rep, fold] = _evaluate_auc(y_test_outer, y_pred_prob)
             outer_best_thresholds[rep, fold] = best_thr
-            fold_times[rep, fold] = end_time - start_time
-            obs_freq, fc_pred = calibration_curve(y_test_outer, y_pred_prob, n_bins=100)
+            obs_freq, prob_pred = calibration_curve(y_test_outer, y_pred_prob, n_bins=100)
             far, hr, thr_roc = roc_curve(y_test_outer, y_pred_prob)
 
             fold_logger.info(
                   f"   · Outer test AUC={outer_auc[rep, fold]:.3f} "
                   f"F1={outer_f1[rep, fold]:.3f} "
-                  f"time={fold_times[rep, fold]:.1f}s"
                   )
 
             # Saving outputs
@@ -482,19 +497,15 @@ def train_with_nested_cv_and_optuna(
                   final_model.save(os.path.join(dir_out, "model_"+ str(prefix) + ".h5"))
             else:
                   joblib.dump(final_model, os.path.join(dir_out, "model_"+ str(prefix) + ".joblib"))
-            np.save(os.path.join(dir_out, f"y_pred_prob_{prefix}.npy"), y_pred_prob)
-            np.save(os.path.join(dir_out, f"y_pred_{prefix}.npy"), y_test_outer)
             np.save(os.path.join(dir_out, f"obs_freq_{prefix}.npy"), np.array(obs_freq))
-            np.save(os.path.join(dir_out, f"fc_pred_{prefix}.npy"), np.array(fc_pred))
+            np.save(os.path.join(dir_out, f"prob_pred_{prefix}.npy"), np.array(prob_pred))
             np.save(os.path.join(dir_out, f"far_{prefix}.npy"), np.array(far))
             np.save(os.path.join(dir_out, f"hr_{prefix}.npy"), np.array(hr))
             np.save(os.path.join(dir_out, f"thr_roc_{prefix}.npy"), np.array(thr_roc))
-
       np.save(os.path.join(dir_out, "recall"), outer_recall)
       np.save(os.path.join(dir_out, "f1"), outer_f1)
       np.save(os.path.join(dir_out, "aroc"), outer_auc)
       np.save(os.path.join(dir_out, "best_threshold"), outer_best_thresholds)
-      np.save(os.path.join(dir_out, "fold_times"), fold_times)
 
       logger.info("★ All outer folds finished.")
       logger.info(f"Overall mean AUC={outer_auc.mean():.3f} ± {outer_auc.std():.3f}")
@@ -503,8 +514,7 @@ def train_with_nested_cv_and_optuna(
             'recall': outer_recall,
             'f1': outer_f1,
             'auc': outer_auc,
-            'best_thresholds': outer_best_thresholds,
-            'times': fold_times
+            'best_thresholds': outer_best_thresholds
       }
 
 ##############################################################################
@@ -515,16 +525,20 @@ logger.info(f"\n\nReading the training dataset")
 file_in_pdt = os.path.join(git_repo, file_in)
 X, y = load_data(file_in_pdt, feature_cols, target_col)
 
-
-
+# Reduce the training dataset for faster training, while maintaing the ratio between yes- and non-events
+train_frac = 0.1
+sss = StratifiedShuffleSplit(n_splits=1, train_size=train_frac, random_state=42)
+subset_idx, _ = next(sss.split(X, y))
+X_sub = X.iloc[subset_idx]
+y_sub = y.iloc[subset_idx] 
 
 
 # Train the considered machine learning models
 for model_2_train in model_2_train_list:
       dir_out_temp = os.path.join(git_repo, dir_out, model_2_train)
       results = train_with_nested_cv_and_optuna(
-            X,
-            y,
+            X_sub,
+            y_sub,
             model_type=model_2_train,
             dir_out=dir_out_temp,
             n_trials=20,
