@@ -1,4 +1,5 @@
 import os
+import sys
 import logging
 import inspect
 from typing import List, Tuple
@@ -15,8 +16,9 @@ from optuna.integration import (
 from optuna.trial import FixedTrial
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import RepeatedStratifiedKFold, StratifiedShuffleSplit
-from sklearn.metrics import roc_curve, auc, recall_score, f1_score, precision_recall_curve
+from sklearn.metrics import roc_curve, auc, average_precision_score, precision_recall_curve
 from sklearn.calibration import calibration_curve
+from sklearn.tree import DecisionTreeClassifier
 from xgboost import XGBClassifier, XGBRFClassifier
 from lightgbm import LGBMClassifier
 from catboost import CatBoostClassifier
@@ -25,6 +27,7 @@ import xgboost as xgb
 from packaging import version
 from tensorflow import keras
 import joblib
+
 
 ##################################################################################################
 # CODE DESCRIPTION
@@ -56,10 +59,9 @@ import joblib
 
 ##################################################################################################
 # INPUT PARAMETERS
+model_2_train = sys.argv[1]
 feature_cols = ["tp_prob_1", "tp_prob_max_1_adj_gb", "tp_prob_50", "tp_prob_max_50_adj_gb", "swvl", "sdfor", "lai"]
 target_col = "ff"
-model_2_train_list = ["feed_forward_keras"]
-#model_2_train_list = ["gradient_boosting_xgboost", "random_forest_xgboost", "gradient_boosting_catboost", "gradient_boosting_lightgbm", "random_forest_lightgbm", "feed_forward_keras", "gradient_boosting_adaboost"]
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
 file_in = "data/processed/11_prob_ff_hydro_short_fc_combine_pdt/pdt_2001_2020.csv"
 dir_out = "data/processed/12_prob_ff_hydro_short_fc_train_ml_cv_optuna"
@@ -126,6 +128,13 @@ def load_data(
 # MODEL REGISTRY #
 #################
 
+def sigmoid(x):
+    return 1.0 / (1.0 + np.exp(-x))
+
+def lgb_auprc(preds, dataset):
+    y_true = dataset.get_label()
+    return "auprc", average_precision_score(y_true, sigmoid(preds)), True
+
 def build_keras_model(trial, input_dim: int):
       n_layers = trial.suggest_int("n_layers", 1, 3)
       model = keras.Sequential()
@@ -153,7 +162,7 @@ def build_xgb_rf(trial, *_):
             'colsample_bynode': trial.suggest_float('colsample_bynode', 0.6, 1.0),
             'subsample': trial.suggest_float('subsample', 0.6, 1.0),
             'objective': 'binary:logistic',
-            'eval_metric': 'auc',
+            'eval_metric': 'aucpr',
             'random_state': 42,
       }
       return XGBRFClassifier(**params)
@@ -167,7 +176,7 @@ def build_xgb_gb(trial, *_):
             'subsample': trial.suggest_float('subsample', 0.6, 1.0),
             'colsample_bytree': trial.suggest_float('colsample_bytree', 0.6, 1.0),
             'objective': 'binary:logistic',
-            'eval_metric': 'auc',
+            'eval_metric': 'aucpr',
             'random_state': 42
       }
       return XGBClassifier(**params)
@@ -183,7 +192,7 @@ def build_lgb_rf(trial, *_):
             'feature_fraction': trial.suggest_float('feature_fraction', 0.6, 1.0),
             'boosting_type': 'rf',
             'objective': 'binary',
-            'force_row_wise': 'True',
+            'eval_metric': 'average_precision',
             'random_state': 42
       }
       return LGBMClassifier(**params)
@@ -197,7 +206,7 @@ def build_lgb_gb(trial, *_):
             'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3),
             'boosting_type': 'gbdt',
             'objective': 'binary',
-            'force_row_wise': 'True',
+            'eval_metric': 'average_precision',
             'random_state': 42
       }
       return LGBMClassifier(**params)
@@ -210,7 +219,7 @@ def build_catboost(trial, *_):
             'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3),
             'l2_leaf_reg': trial.suggest_float('l2_leaf_reg', 1, 5),
             'loss_function': 'Logloss',
-            'eval_metric': 'AUC',
+            'eval_metric': 'PRAUC:type=Classic',
             'verbose': 0,
             'random_state': 42
       }
@@ -218,12 +227,19 @@ def build_catboost(trial, *_):
 
 ######################################
 def build_adaboost_gb(trial, *_):
-      params = {
-            'n_estimators': trial.suggest_int('n_estimators', 100, 500),
-            'learning_rate': trial.suggest_float('learning_rate', 0.01, 1.0),
-            'random_state': 42
-      }
-      return AdaBoostClassifier(**params)
+      
+      stump = DecisionTreeClassifier(
+            max_depth=trial.suggest_int("dt_max_depth", 1, 3),
+            min_samples_leaf=trial.suggest_int("dt_min_samples_leaf", 1, 10),
+            )
+
+      return AdaBoostClassifier(
+            estimator=stump,              
+            n_estimators=trial.suggest_int("n_estimators", 100, 500),
+            learning_rate=trial.suggest_float("learning_rate", 0.01, 1.0),
+            algorithm="SAMME",
+            random_state=42
+            )
 
 ##################
 MODEL_REGISTRY = {
@@ -248,9 +264,12 @@ def build_model(model_type: str, trial, input_dim: int = None):
 # NESTED CV + OPTUNA LOGIC #
 ##########################
 
-def _evaluate_auc(y_true, y_pred_prob):
-      fpr, tpr, _ = roc_curve(y_true, y_pred_prob)
-      return auc(fpr, tpr)
+def evaluate_auc(y_true, y_pred_prob):
+    fpr, tpr, _ = roc_curve(y_true, y_pred_prob)
+    return auc(fpr, tpr)
+
+def evaluate_auprc(y_true, y_pred_prob):
+    return average_precision_score(y_true, y_pred_prob)
 
 ################################
 def _make_dir_if_not_exists(path: str):
@@ -269,7 +288,7 @@ def inner_objective(trial, model_type, X_train, y_train, n_splits=5, n_repeats=1
                   n_repeats=n_repeats,
                   random_state=42)
             
-            auc_scores = []
+            auprc_scores = []
 
             for train_idx, val_idx in kf.split(X_train, y_train):
 
@@ -301,9 +320,9 @@ def inner_objective(trial, model_type, X_train, y_train, n_splits=5, n_repeats=1
                         )
 
                   y_val_prob = model.predict(X_valf)[:, 1]
-                  auc_scores.append(_evaluate_auc(y_valf, y_val_prob))
+                  auprc_scores.append(evaluate_auprc(y_valf, y_val_prob))
 
-            return np.mean(auc_scores)
+            return np.mean(auprc_scores)
       
       # --- Tree-Based Models --- #
       kf = RepeatedStratifiedKFold(
@@ -312,7 +331,7 @@ def inner_objective(trial, model_type, X_train, y_train, n_splits=5, n_repeats=1
             random_state=42
             )
       
-      auc_scores = []
+      auprc_scores = []
 
       for train_idx, val_idx in kf.split(X_train, y_train):
             
@@ -329,7 +348,7 @@ def inner_objective(trial, model_type, X_train, y_train, n_splits=5, n_repeats=1
                               y_tr,
                               eval_set=[(X_val, y_val)],
                               verbose=False,
-                              callbacks=[XGBoostPruningCallback(trial, "validation_0-auc")],
+                              callbacks=[XGBoostPruningCallback(trial, "validation_0-aucpr")],
                         )
                   else:
                         model.fit(
@@ -345,8 +364,8 @@ def inner_objective(trial, model_type, X_train, y_train, n_splits=5, n_repeats=1
                         X_tr,
                         y_tr,
                         eval_set=[(X_val, y_val)],
-                        eval_metric="auc",
-                        callbacks=[LightGBMPruningCallback(trial, "auc")],
+                        eval_metric="average_precision",
+                        callbacks=[LightGBMPruningCallback(trial, "average_precision")],
                         )
 
             elif model_type == "gradient_boosting_catboost":
@@ -356,7 +375,7 @@ def inner_objective(trial, model_type, X_train, y_train, n_splits=5, n_repeats=1
                         y_tr,
                         eval_set=(X_val, y_val),
                         verbose=False,
-                        callbacks=[CatBoostPruningCallback(trial, "AUC")],
+                        callbacks=[CatBoostPruningCallback(trial, "PRAUC:type=Classic")],
                         )
             
             else:
@@ -364,9 +383,9 @@ def inner_objective(trial, model_type, X_train, y_train, n_splits=5, n_repeats=1
                   model.fit(X_tr, y_tr)
 
             y_val_prob = model.predict_proba(X_val)[:, 1]
-            auc_scores.append(_evaluate_auc(y_val, y_val_prob))
+            auprc_scores.append(evaluate_auprc(y_val, y_val_prob))
       
-      return np.mean(auc_scores)
+      return np.mean(auprc_scores)
 
 def train_with_nested_cv_and_optuna(
       X: pd.DataFrame,
@@ -386,8 +405,7 @@ def train_with_nested_cv_and_optuna(
             )
 
       shape_scores = (n_repeats, n_outer)
-      outer_f1   = np.zeros(shape_scores)
-      outer_recall = np.zeros(shape_scores)
+      outer_auprc   = np.zeros(shape_scores)
       outer_auc  = np.zeros(shape_scores)
       outer_best_thresholds = np.zeros(shape_scores)
 
@@ -437,7 +455,7 @@ def train_with_nested_cv_and_optuna(
                   json.dump(study.best_trial.params, fp, indent=2)
             # ----------------------------------- #
 
-            fold_logger.info(f"   · Optuna done. Best AUC={study.best_value:.3f}")
+            fold_logger.info(f"   · Optuna done. Best AUPRC={study.best_value:.3f}")
             best_params = study.best_params
             fixed_trial = FixedTrial(best_params)
 
@@ -473,21 +491,19 @@ def train_with_nested_cv_and_optuna(
                   final_model.fit(X_train_scaled, y_train_outer)
                   y_pred_prob = final_model.predict_proba(X_test_scaled)[:, 1]
 
-            precision, recall_array, thresholds = precision_recall_curve(y_test_outer, y_pred_prob)
-            f1_curve = 2 * (precision * recall_array) / (precision + recall_array + 1e-6)
-            best_thr = thresholds[np.argmax(f1_curve)] if thresholds.size else 0.5
-            y_pred_outer = (y_pred_prob >= best_thr).astype(int)
+            precision, recall, thr_pr = precision_recall_curve(y_test_outer, y_pred_prob)
+            f1_curve = 2 * (precision * recall) / (precision + recall + 1e-6)
+            best_thr = thr_pr[np.argmax(f1_curve)] if thr_pr.size else 0.5
 
-            outer_recall[rep, fold] = recall_score(y_test_outer, y_pred_outer)
-            outer_f1[rep, fold] = f1_score(y_test_outer, y_pred_outer)
-            outer_auc[rep, fold] = _evaluate_auc(y_test_outer, y_pred_prob)
+            outer_auprc[rep, fold] = evaluate_auprc(y_test_outer, y_pred_prob)
+            outer_auc[rep, fold] = evaluate_auc(y_test_outer, y_pred_prob)
             outer_best_thresholds[rep, fold] = best_thr
             obs_freq, prob_pred = calibration_curve(y_test_outer, y_pred_prob, n_bins=100)
             far, hr, thr_roc = roc_curve(y_test_outer, y_pred_prob)
 
             fold_logger.info(
+                  f"   · Outer test AUPRC={outer_auprc[rep, fold]:.3f} "
                   f"   · Outer test AUC={outer_auc[rep, fold]:.3f} "
-                  f"F1={outer_f1[rep, fold]:.3f} "
                   )
 
             # Saving outputs
@@ -502,20 +518,15 @@ def train_with_nested_cv_and_optuna(
             np.save(os.path.join(dir_out, f"far_{prefix}.npy"), np.array(far))
             np.save(os.path.join(dir_out, f"hr_{prefix}.npy"), np.array(hr))
             np.save(os.path.join(dir_out, f"thr_roc_{prefix}.npy"), np.array(thr_roc))
-      np.save(os.path.join(dir_out, "recall"), outer_recall)
-      np.save(os.path.join(dir_out, "f1"), outer_f1)
+            np.save(os.path.join(dir_out, f"precision_{prefix}.npy"), np.array(precision))
+            np.save(os.path.join(dir_out, f"recall_{prefix}.npy"), np.array(recall))
       np.save(os.path.join(dir_out, "aroc"), outer_auc)
+      np.save(os.path.join(dir_out, "auprc"), outer_auprc)
       np.save(os.path.join(dir_out, "best_threshold"), outer_best_thresholds)
 
       logger.info("★ All outer folds finished.")
+      logger.info(f"Overall mean AUPRC={outer_auprc.mean():.3f} ± {outer_auc.std():.3f}")
       logger.info(f"Overall mean AUC={outer_auc.mean():.3f} ± {outer_auc.std():.3f}")
-
-      return {
-            'recall': outer_recall,
-            'f1': outer_f1,
-            'auc': outer_auc,
-            'best_thresholds': outer_best_thresholds
-      }
 
 ##############################################################################
 
@@ -532,19 +543,15 @@ subset_idx, _ = next(sss.split(X, y))
 X_sub = X.iloc[subset_idx]
 y_sub = y.iloc[subset_idx] 
 
-
 # Train the considered machine learning models
-for model_2_train in model_2_train_list:
-      dir_out_temp = os.path.join(git_repo, dir_out, model_2_train)
-      results = train_with_nested_cv_and_optuna(
-            X_sub,
-            y_sub,
-            model_type=model_2_train,
-            dir_out=dir_out_temp,
-            n_trials=20,
-            n_outer=5,
-            n_inner=3,
-            n_repeats = 1
-            )
-      logger.info("Nested CV results: ")
-      logger.info(results)
+dir_out_temp = os.path.join(git_repo, dir_out, model_2_train)
+results = train_with_nested_cv_and_optuna(
+      X_sub,
+      y_sub,
+      model_type=model_2_train,
+      dir_out=dir_out_temp,
+      n_trials = 20,
+      n_outer = 5,
+      n_inner = 3,
+      n_repeats = 1
+      )
