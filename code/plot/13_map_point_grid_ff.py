@@ -89,8 +89,14 @@ coastlines = mv.mcoast(
       map_boundaries = "on",
       map_boundaries_colour = "charcoal",
       map_boundaries_thickness = 4,
-      map_grid = "off",
-      map_label = "off"
+      map_grid_latitude_increment = 10,
+      map_grid_longitude_increment = 20,
+      map_label_right = "off",
+      map_label_top = "off",
+      map_label_colour = "charcoal",
+      map_grid_thickness = 1,
+      map_grid_colour = "charcoal",
+      map_label_height = 0.7
       )
 
 geo_view = mv.geoview(
