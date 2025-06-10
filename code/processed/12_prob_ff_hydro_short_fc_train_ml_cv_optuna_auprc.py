@@ -64,7 +64,7 @@ feature_cols = ["tp_prob_1", "tp_prob_max_1_adj_gb", "tp_prob_50", "tp_prob_max_
 target_col = "ff"
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
 file_in = "data/processed/11_prob_ff_hydro_short_fc_combine_pdt/pdt_2001_2020.csv"
-dir_out = "data/processed/12_prob_ff_hydro_short_fc_train_ml_cv_optuna"
+dir_out = "data/processed/12_prob_ff_hydro_short_fc_train_ml_cv_optuna/auprc"
 ##################################################################################################
 
 
@@ -537,7 +537,7 @@ file_in_pdt = os.path.join(git_repo, file_in)
 X, y = load_data(file_in_pdt, feature_cols, target_col)
 
 # Reduce the training dataset for faster training, while maintaing the ratio between yes- and non-events
-train_frac = 0.1
+train_frac = 0.01
 sss = StratifiedShuffleSplit(n_splits=1, train_size=train_frac, random_state=42)
 subset_idx, _ = next(sss.split(X, y))
 X_sub = X.iloc[subset_idx]

@@ -4,14 +4,14 @@ from typing import List, Tuple
 import numpy as np
 import pandas as pd
 import joblib
+from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier, XGBRFClassifier
 from lightgbm import LGBMClassifier
 from catboost import CatBoostClassifier
 from sklearn.ensemble import AdaBoostClassifier
-import tensorflow as tf
-tf.config.run_functions_eagerly(True)
+from tensorflow import keras
 from tensorflow.keras.models import load_model
-from sklearn.metrics import roc_curve, auc, recall_score, f1_score, precision_recall_curve
+from sklearn.metrics import roc_curve, auc, average_precision_score, precision_recall_curve
 from sklearn.calibration import calibration_curve
 
 logging.basicConfig(
@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 # INPUT PARAMETERS DESCRIPTION
 # feature_cols (list of strings): list of feature columns' names, i.e. model's predictors.
 # target_col (string): target column's name, i.e. model's predictand.
+# eval_matric (string): evaluation metric used for hyperparameter tuning.
 # model_2_train_list (list of strings): names of the considered machine learning models. Valid values are:
 #                                                                 - random_forest_xgboost
 #                                                                 - random_forest_lightgbm
@@ -43,7 +44,7 @@ logger = logging.getLogger(__name__)
 #                                                                 - gradient_boosting_catboost
 #                                                                 - gradient_boosting_adaboost
 #                                                                 - feed_forward_keras
-# best_kfold_list (list of integers): list of kfolds containing the best set of hyperparameters for the correspondent model.
+# kfold_count (integer): count of outter k-folds considering during the hyperparameters tunning.
 # git_repo (string): repository's local path.
 # file_in_train (string): relative path of the file containing the training dataset.
 # file_in_test (string): relative path of the file containing the test dataset.
@@ -52,15 +53,16 @@ logger = logging.getLogger(__name__)
 
 ##################################################################################################
 # INPUT PARAMETERS
-feature_cols = ["tp_prob_1", "tp_prob_50", "swvl", "sdfor", "lai"]
+feature_cols = ["tp_prob_1", "tp_prob_max_1_adj_gb", "tp_prob_50", "tp_prob_max_50_adj_gb", "swvl", "sdfor", "lai"]
 target_col = "ff"
-model_2_train_list = ["gradient_boosting_xgboost"]
-best_kfold_list = [1]
+eval_matric = "auprc"
+kfold_count = 5
+model_2_train_list = ["feed_forward_keras"]
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
 file_in_train = "data/processed/11_prob_ff_hydro_short_fc_combine_pdt/pdt_2001_2020.csv"
-file_in_test = "data/processed/11_prob_ff_hydro_short_fc_combine_pdt/pdt_2021_2024.csv"
-dir_in_model = "data/processed/12_prob_ff_hydro_short_fc_train_ml_cv_optuna_new"
-dir_out = "data/processed/13_prob_ff_hydro_short_fc_retrain_best_kfold_new"
+file_in_test  = "data/processed/11_prob_ff_hydro_short_fc_combine_pdt/pdt_2021_2024.csv"
+dir_in_model = "data/processed/12_prob_ff_hydro_short_fc_train_ml_cv_optuna"
+dir_out = "data/processed/13_prob_ff_hydro_short_fc_retrain_best_kfold"
 ##################################################################################################
 
 
@@ -109,9 +111,24 @@ def load_data(csv_path: str, feature_cols: List[str], target_col: str) -> Tuple[
       return X, y
 
 
-#######################
-# TRAIN THE FINAL MODEL #
-#######################
+#################
+# MODEL REGISTRY #
+#################
+
+def build_feed_forward_keras(template_path: str, input_dim: int):
+      tmp_model = load_model(template_path) # loads the model with weights, architectures, and hyperparameters
+      opt_cfg   = tmp_model.optimizer.get_config() # imports the optimised parameters
+      new_opt   = type(tmp_model.optimizer).from_config(opt_cfg)
+
+      model = load_model(template_path, compile=False) # loads the model with weights, architectures to retrain fresh over the full training dataset
+      model.compile(
+            optimizer=new_opt, # imports Optuna's optimised hyperparameters
+            loss="sparse_categorical_crossentropy",
+            metrics=[],
+            run_eagerly=True
+            )
+
+      return model
 
 MODEL_MAP = {
       "random_forest_xgboost": XGBRFClassifier,
@@ -122,15 +139,25 @@ MODEL_MAP = {
       "gradient_boosting_adaboost": AdaBoostClassifier,
 }
 
-def build_final_model(model_name, fold_model_file, X_train, y_train, X_test, y_test, dir_out):
+
+#######################
+# TRAIN THE FINAL MODEL #
+#######################
+
+def build_final_model(model_name: str,
+                      fold_model_file: str,
+                      X_train: pd.DataFrame,
+                      y_train: pd.Series,
+                      X_test: pd.DataFrame,
+                      y_test: pd.Series,
+                      dir_out: str):
     
       """
       WORKFLOW:
-      1. Load the best model from a given fold (by file path).
+      1. Load the best models for each outer fold.
       2. Extract its hyperparameters.
       3. Create a fresh instance of the chosen model class with those hyperparameters.
       4. Train the model on the entire training dataset.
-      5. Apply the model over the test dataset.
       
       PARAMETERS:
       model_name : str
@@ -141,10 +168,6 @@ def build_final_model(model_name, fold_model_file, X_train, y_train, X_test, y_t
             Input features for the entire training dataset.
       y_train : np.array or pd.Series
             Target labels for the entire training dataset.
-      X_test : np.array or pd.DataFrame
-            Input features for the test dataset.
-      y_test : np.array or pd.Series
-            Target labels for the test dataset.
       
       Returns
       -------
@@ -152,100 +175,80 @@ def build_final_model(model_name, fold_model_file, X_train, y_train, X_test, y_t
             Trained model on the full dataset, using the best fold's hyperparameters.
       """
 
-      # Load the model from joblib and extarct the model parameters
-      if model_name == "feed_forward_keras":
-            best_fold_model = load_model(fold_model_file)
-      else:
+      # Retrain the models
+      if model_name == "feed_forward_keras": # feed-forward neural network
+            
+            scaler = StandardScaler().fit(X_train) # Standardize the inputs
+            X_train_proc = scaler.transform(X_train)
+            X_test_proc  = scaler.transform(X_test)
+
+            final_model = build_feed_forward_keras(fold_model_file, input_dim=X_train_proc.shape[1])
+
+            es = keras.callbacks.EarlyStopping(
+                  monitor="val_loss",
+                  patience=2,
+                  restore_best_weights=True
+            )
+
+            final_model.fit(
+                  X_train_proc,
+                  y_train.values,
+                  validation_split=0.1,
+                  batch_size=64,
+                  epochs=20,
+                  callbacks=[es],
+                  verbose=0
+            )
+
+            final_model.save(os.path.join(dir_out, "model.h5")) # model
+            joblib.dump(scaler, os.path.join(dir_out, "scaler.joblib")) # scaling parameters used during training to use again when deploying or re-running the model
+
+            def _predict(m, X_): # helper to create the predictions
+                  return m.predict(X_)[:, 1] # we slice only the samples that belong to the positive class (i.e. yes flash flood events)
+            
+            y_pred_prob_train = _predict(final_model, X_train_proc)
+            y_pred_prob_test  = _predict(final_model, X_test_proc)
+            
+      else: # decision-tree-based models
+
             best_fold_model = joblib.load(fold_model_file)
-            best_params = best_fold_model.get_params()
-            if 'use_label_encoder' in best_params:
-                  del best_params['use_label_encoder']
-
-      # Retrieve the model class from MODEL_MAP
-      model_class = MODEL_MAP.get(model_name)
-
-      # Create a fresh instance of the chosen model with the best hyperparams
-      if model_name == "feed_forward_keras":
-            final_model = best_fold_model
-      else:
-            final_model = model_class(**best_params)
-
-      # Retrain the model over the whole training dataset, and save it
-      final_model.fit(X_train, y_train)
-
-      if model_name == 'feed_forward_keras':
-            final_model.save(os.path.join(dir_out, "model.h5"))
-      else:
+            best_params = best_fold_model.get_params(deep=False) # re-train on the full dataset with the same hyper-parameters
+            best_params.pop("use_label_encoder", None)
+            best_params.pop("algorithm", None)
+            model_class = MODEL_MAP[model_name]
+            final_model = model_class(**best_params) # fresh estimator
+            final_model.fit(X_train, y_train)
             joblib.dump(final_model, os.path.join(dir_out, "model.joblib"))
 
+            y_pred_prob_train = final_model.predict_proba(X_train)[:, 1]
+            y_pred_prob_test  = final_model.predict_proba(X_test)[:, 1]
 
-      # Evaluate the model over the training dataset, and save the scores
-      X = X_train
-      y = y_train
-      name = "train"
-      if model_name == 'feed_forward_keras':
-            y_pred_prob = final_model.predict(X.values)[:, 1]
-      else:
-            y_pred_prob = final_model.predict_proba(X)[:, 1]
+      for split_name, y_true, y_prob in [
+            ("train", y_train, y_pred_prob_train),
+            ("test",  y_test,  y_pred_prob_test)
+      ]:
+            precision, recall, thr = precision_recall_curve(y_true, y_prob)
+            f1_curve = 2 * (precision * recall) / (precision + recall + 1e-6)
+            best_thr = thr[np.argmax(f1_curve)] if thr.size else 0.5
+            y_pred = (y_prob >= best_thr).astype(int)
 
-      precision, recall_curve, thresholds = precision_recall_curve(y, y_pred_prob)
-      f1_curve = 2 * (precision * recall_curve) / (precision + recall_curve + 1e-6)
-      best_idx = np.argmax(f1_curve)
-      best_threshold = thresholds[best_idx]
-      y_pred = (y_pred_prob >= best_threshold).astype(int)
+            obs_freq, fc_pred = calibration_curve(y_true, y_prob, n_bins=100)
+            far, hr, thr_roc = roc_curve(y_true, y_prob)
+            aroc = auc(far, hr)
+            auprc = average_precision_score(y_true, y_prob)
+            fb = y_pred.sum() / max(y_true[y_pred == 1].sum(), 1)
 
-      obs_freq, fc_pred = calibration_curve(y, y_pred_prob, n_bins=100)
-      far, hr, thr_roc = roc_curve(y, y_pred_prob)
-      aroc = auc(far, hr)
-      recall = recall_score(y, y_pred)
-      f1 = f1_score(y, y_pred)
-
-      ind_yes = np.where(y_pred == 1)[0]
-      yes_fc = ind_yes.shape[0]
-      yes_obs = np.sum(y[ind_yes])
-      fb =  yes_fc / yes_obs
-
-      test_scores = np.array([recall, f1, aroc, fb, best_threshold])
-      np.save(dir_out + "/obs_freq_" + name, obs_freq)
-      np.save(dir_out + "/fc_pred_" + name, fc_pred)
-      np.save(dir_out + "/far_" + name, far)
-      np.save(dir_out + "/hr_" + name, hr)
-      np.save(dir_out + "/thr_roc_" + name, thr_roc)
-      np.save(dir_out + "/test_scores_" + name, test_scores)
-
-      # Evaluate the model over the test dataset, and save the scores
-      X = X_test
-      y = y_test
-      name = "test"
-      if model_name == 'feed_forward_keras':
-            y_pred_prob = final_model.predict(X.values)[:, 1]
-      else:
-            y_pred_prob = final_model.predict_proba(X)[:, 1]
-
-      precision, recall_curve, thresholds = precision_recall_curve(y, y_pred_prob)
-      f1_curve = 2 * (precision * recall_curve) / (precision + recall_curve + 1e-6)
-      best_idx = np.argmax(f1_curve)
-      best_threshold = thresholds[best_idx]
-      y_pred = (y_pred_prob >= best_threshold).astype(int)
-
-      obs_freq, fc_pred = calibration_curve(y, y_pred_prob, n_bins=100)
-      far, hr, thr_roc = roc_curve(y, y_pred_prob)
-      aroc = auc(far, hr)
-      recall = recall_score(y, y_pred)
-      f1 = f1_score(y, y_pred)
-
-      ind_yes = np.where(y_pred == 1)[0]
-      yes_fc = ind_yes.shape[0]
-      yes_obs = np.sum(y[ind_yes])
-      fb =  yes_fc / yes_obs
-
-      test_scores = np.array([recall, f1, aroc, fb, best_threshold])
-      np.save(dir_out + "/obs_freq_" + name, obs_freq)
-      np.save(dir_out + "/fc_pred_" + name, fc_pred)
-      np.save(dir_out + "/far_" + name, far)
-      np.save(dir_out + "/hr_" + name, hr)
-      np.save(dir_out + "/thr_roc_" + name, thr_roc)
-      np.save(dir_out + "/test_scores_" + name, test_scores)
+            np.save(os.path.join(dir_out, f"obs_freq_{split_name}.npy"), obs_freq)
+            np.save(os.path.join(dir_out, f"prob_pred_{split_name}.npy"), fc_pred)
+            np.save(os.path.join(dir_out, f"far_{split_name}.npy"), far)
+            np.save(os.path.join(dir_out, f"hr_{split_name}.npy"), hr)
+            np.save(os.path.join(dir_out, f"thr_roc_{split_name}.npy"), thr_roc)
+            np.save(os.path.join(dir_out, f"precision_{split_name}.npy"), np.array(precision))
+            np.save(os.path.join(dir_out, f"recall_{split_name}.npy"), np.array(recall))
+            np.save(os.path.join(dir_out, f"aroc_{split_name}.npy"), np.array(aroc))
+            np.save(os.path.join(dir_out, f"auprc_{split_name}.npy"), np.array(auprc))
+            np.save(os.path.join(dir_out, f"fb_{split_name}.npy"), np.array(fb))
+            np.save(os.path.join(dir_out, f"best_thr_{split_name}.npy"), np.array(best_thr))
 
 ##############################################################################
 
@@ -253,28 +256,28 @@ def build_final_model(model_name, fold_model_file, X_train, y_train, X_test, y_t
 # Read the training and the test datasets
 logger.info(f"\n\nReading the training dataset")
 file_in_train = git_repo + "/" + file_in_train
-X_train, y_train = load_data(file_in_train, feature_cols, target_col)
-
-logger.info(f"\n\nReading the test dataset")
 file_in_test = git_repo + "/" + file_in_test
+X_train, y_train = load_data(file_in_train, feature_cols, target_col)
 X_test, y_test = load_data(file_in_test, feature_cols, target_col)
-
 
 # Uploading the trained model
 for ind_model in range(len(model_2_train_list)):
 
       model_2_train = model_2_train_list[ind_model]
-      kfold = best_kfold_list[ind_model]
-      logger.info(f"Re-training the {model_2_train} model")
       
-      # Create the output directory
-      dir_out_temp = git_repo + "/" + dir_out + "/" + model_2_train
-      os.makedirs(dir_out_temp, exist_ok=True)
-
       # Train the final version of the model
       if model_2_train == "feed_forward_keras":
             model_ext = ".h5"
       else:
             model_ext = ".joblib"
-      file_in = git_repo + "/" + dir_in_model + "/" + model_2_train + "/model_rep1_fold" + str(kfold) + model_ext
-      build_final_model(model_2_train, file_in, X_train, y_train, X_test, y_test, dir_out_temp)
+
+      for k_fold in range(kfold_count):
+
+            logger.info(f"Re-training the {model_2_train} model - k-fold n. {k_fold + 1}")
+
+            # Create the output directory
+            dir_out_temp = git_repo + "/" + dir_out + "/" + eval_matric + "/" + model_2_train + "/fold" + str(k_fold + 1) 
+            os.makedirs(dir_out_temp, exist_ok=True)
+
+            file_in = git_repo + "/" + dir_in_model + "/" + eval_matric + "/" + model_2_train + "/model_rep1_fold" + str(k_fold + 1) + model_ext
+            build_final_model(model_2_train, file_in, X_train, y_train, X_test, y_test, dir_out_temp)
