@@ -66,7 +66,6 @@ for ind_ml, ml_trained in enumerate(ml_trained_list):
       plt.plot(np.arange(1, num_k_outer + 1), np.array(mean), color = colours_ml_trained, lw = 2)
       plt.plot(np.arange(1, num_k_outer + 1), np.array(median), "--", color = colours_ml_trained, lw = 2)
       plt.fill_between(np.arange(1, num_k_outer + 1), np.array(min), np.array(max, ), color = colours_ml_trained, alpha=0.4, edgecolor="none")
-      plt.title("Model performance", fontweight='bold', color="#333333", fontsize=14)
       plt.xlabel("Outer folds", color = "#333333", fontsize = 12)
       plt.ylabel(eval_metric.upper(), color = "#333333", fontsize = 12)
       plt.tick_params(axis='x', colors='#333333', labelsize=12)
@@ -101,7 +100,6 @@ for ind_ml, ml_trained in enumerate(ml_trained_list):
             
       plt.plot(np.arange(1, num_k_outer + 1), np.array(mean), color = colours_ml_trained, lw = 2)
       plt.fill_between(np.arange(1, num_k_outer + 1), np.array(min), np.array(max, ), color = colours_ml_trained, alpha=0.4, edgecolor="none")
-      plt.title("Training times", fontweight='bold', color="#333333", fontsize=14)
       plt.xlabel("Outer folds", color = "#333333", fontsize = 12)
       plt.ylabel("Times [seconds]", color = "#333333", fontsize = 12)
       plt.tick_params(axis='x', colors='#333333', labelsize=12)
@@ -149,7 +147,6 @@ for ind_ml, ml_trained in enumerate(ml_trained_list):
         "capsize": 4,                       # (optional) cap size override
         "capthick": 1.2                     # (optional) cap line width
     })
-      plt.title("Parameter importance", fontweight='bold', color="#333333", fontsize=14)
       plt.xlabel("Normalised abs(Pearson's r coefficient)", color = "#333333", fontsize = 12)
       plt.tick_params(axis='x', colors='#333333', labelsize=12)
       plt.tick_params(axis='y', colors='#333333', labelsize=12)
@@ -177,7 +174,6 @@ for ind_ml, ml_trained in enumerate(ml_trained_list):
             plt.plot(df["number"]+1, df["value"], "o--", markersize=2, lw=1, color=colours_ml_trained, alpha = alpha[ind_k])
             plt.plot(df["number"]+1, df["value"].cummax(), linestyle="-", lw = 2.5, color=colours_ml_trained, alpha = alpha[ind_k])
       
-      plt.title("Optimisation history", fontweight='bold', color="#333333", fontsize=14)
       plt.xlabel("Trial number", color = "#333333", fontsize = 12)
       plt.ylabel(eval_metric, color = "#333333", fontsize = 12)
       plt.tick_params(axis='x', colors='#333333', labelsize=12)
