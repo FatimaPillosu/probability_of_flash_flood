@@ -10,7 +10,7 @@ from matplotlib.ticker import MaxNLocator
 
 # Usage: python3 22_prob_ff_hydro_short_fc_cv_optuna.py
 
-# Runtime: ~ 1 minute.
+# Runtime: ~ 3 minutes.
 
 # Author: Fatima M. Pillosu <fatima.pillosu@ecmwf.int> | ORCID 0000-0001-8127-0990
 # License: Creative Commons Attribution-NonCommercial_ShareAlike 4.0 International
@@ -35,13 +35,50 @@ from matplotlib.ticker import MaxNLocator
 # INPUT PARAMETERS
 num_k_outer = 5
 ml_trained_list = ["gradient_boosting_xgboost", "random_forest_xgboost", "gradient_boosting_catboost", "gradient_boosting_lightgbm", "random_forest_lightgbm", "gradient_boosting_adaboost", "feed_forward_keras"]
+#ml_trained_list = ["gradient_boosting_xgboost", "random_forest_xgboost", "gradient_boosting_catboost", "gradient_boosting_lightgbm", "random_forest_lightgbm"]
 colours_ml_trained_list = ["mediumblue", "orangered", "teal", "crimson", "dodgerblue", "darkviolet", "magenta"]
-eval_metric = "aroc"
+eval_metric = "auprc"
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
 dir_in = "data/processed/12_prob_ff_hydro_short_fc_train_ml_cv_optuna"
 dir_out = "data/plot/22_prob_ff_hydro_short_fc_cv_optuna"
 ##############################################################################################################
 
+
+# Plots about model's generalisation capabilities under imbalanced datasets
+for ind_ml, ml_trained in enumerate(ml_trained_list):
+      
+      colours_ml_trained = colours_ml_trained_list[ind_ml]
+      dir_in_temp = f'{git_repo}/{dir_in}/{eval_metric}/{ml_trained}/optuna'
+
+      mean = []
+      median = []
+      max = []
+      min = []
+      plt.figure(figsize=(7, 4))
+
+      for ind_k in range(num_k_outer):
+            df = pd.read_csv(f'{dir_in_temp}/trials_rep1_fold{ind_k+1}.csv', delimiter = ",")
+            eval_metric_vals = df["value"]
+            mean.append(eval_metric_vals.mean())
+            median.append(eval_metric_vals.median())
+            max.append(eval_metric_vals.max())
+            min.append(eval_metric_vals.min())
+            
+      plt.plot(np.arange(num_k_outer), np.array(mean), color = colours_ml_trained, lw = 2)
+      plt.fill_between(np.arange(num_k_outer), np.array(min), np.array(max, ), color = colours_ml_trained, alpha=0.4, edgecolor="none")
+      plt.title("Model performance", fontweight='bold', color="#333333", fontsize=14)
+      plt.xlabel("Outer folds", color = "#333333", fontsize = 12)
+      plt.ylabel(eval_metric.upper(), color = "#333333", fontsize = 12)
+      plt.tick_params(axis='x', colors='#333333', labelsize=12)
+      plt.tick_params(axis='y', colors='#333333', labelsize=12)
+      plt.ylim([0,0.04])
+      plt.tight_layout()
+      
+      dir_out_temp = f'{git_repo}/{dir_out}/{eval_metric}/{ml_trained}'
+      os.makedirs(dir_out_temp, exist_ok=True)        
+      plt.savefig(f'{dir_out_temp}/model_generalisation.png', dpi=1000)
+      plt.close()
+exit()
 
 # Plots about hyperparameters importance
 meta_cols = {"number", "value", "state", "datetime_start", "datetime_complete", "wall_secs", "duration"}
@@ -71,7 +108,7 @@ for ind_ml, ml_trained in enumerate(ml_trained_list):
 
             dir_out_temp = f'{git_repo}/{dir_out}/{eval_metric}/{ml_trained}/fold_{ind_k + 1}'
             os.makedirs(dir_out_temp, exist_ok=True)        
-            plt.savefig(f'{dir_out_temp}/param_importance{ind_k+1}.png', dpi=1000)
+            plt.savefig(f'{dir_out_temp}/param_importance.png', dpi=1000)
             plt.close()
 
 
@@ -99,7 +136,8 @@ for ind_ml, ml_trained in enumerate(ml_trained_list):
 
             dir_out_temp = f'{git_repo}/{dir_out}/{eval_metric}/{ml_trained}/fold_{ind_k + 1}'
             os.makedirs(dir_out_temp, exist_ok=True)     
-            plt.savefig(f'{dir_out_temp}/opt_history_{ind_k+1}.png', dpi=1000)
+            plt.savefig(f'{dir_out_temp}/optuna_history.png', dpi=1000)
+            plt.close()
 
 
 # Plots Trial runtime vs. Model performance
@@ -134,5 +172,5 @@ for ind_ml, ml_trained in enumerate(ml_trained_list):
 
             dir_out_temp = f'{git_repo}/{dir_out}/{eval_metric}/{ml_trained}/fold_{ind_k + 1}'
             os.makedirs(dir_out_temp, exist_ok=True)
-            plt.savefig(f'{dir_out_temp}/runtime_performance_{ind_k+1}.png', dpi=1000)
+            plt.savefig(f'{dir_out_temp}/runtime_performance.png', dpi=1000)
             plt.close()

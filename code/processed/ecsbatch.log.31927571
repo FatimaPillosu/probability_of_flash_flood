@@ -1,0 +1,43 @@
+[ECMWF-INFO -sbatch] - -------------------------------------------------------------------------------------
+[ECMWF-INFO -sbatch] -  This is the ECMWF jobfilter
+[ECMWF-INFO -sbatch] -  +++ Please report issues using the Support portal +++
+[ECMWF-INFO -sbatch] -  +++ https://support.ecmwf.int                     +++
+[ECMWF-INFO -sbatch] -  /usr/local/bin/ecsbatch: size: 52065, mtime: Wed Feb 12 19:10:58 2025
+[ECMWF-INFO -sbatch] - -------------------------------------------------------------------------------------
+[ECMWF-INFO -sbatch] - Time at submit: Thu Jun 12 09:17:07 2025 (1749719827.276201) on ac6-102.bullx:/etc/ecmwf/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood/code/processed
+[ECMWF-INFO -sbatch] - --- SLURM VARIABLES ---
+[ECMWF-INFO -sbatch] - EC_CLUSTER=ac
+[ECMWF-INFO -sbatch] - SLURM_EXPORT_ENV=ALL
+[ECMWF-INFO -sbatch] - SBATCH_EXPORT=NONE
+[ECMWF-INFO -sbatch] - -----------------------
+[ECMWF-INFO -sbatch] - jobscript: /etc/ecmwf/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood/code/processed/13a_SubmitterATOS_prob_ff_hydro_short_fc_retrain_best_kfold.sh
+[ECMWF-INFO -sbatch] - --- SCRIPT OPTIONS ---
+[ECMWF-INFO -sbatch] - #SBATCH --job-name=retrain_ml
+[ECMWF-INFO -sbatch] - #SBATCH --output=log_atos/retrain_ml-%J.out
+[ECMWF-INFO -sbatch] - #SBATCH --error=log_atos/retrain_ml-%J.out
+[ECMWF-INFO -sbatch] - #SBATCH --cpus-per-task=64
+[ECMWF-INFO -sbatch] - #SBATCH --mem=128G
+[ECMWF-INFO -sbatch] - #SBATCH --time=2-00:00:00
+[ECMWF-INFO -sbatch] - #SBATCH --qos=ng
+[ECMWF-INFO -sbatch] - #SBATCH --gpus=8
+[ECMWF-INFO -sbatch] - #SBATCH --mail-type=FAIL
+[ECMWF-INFO -sbatch] - #SBATCH --mail-user=fatima.pillosu@ecmwf.int
+[ECMWF-INFO -sbatch] - -----------------------
+[ECMWF-INFO -sbatch] - --- POST-PROCESSED OPTIONS ---
+[ECMWF-INFO -sbatch] - ARG --positional=['13a_SubmitterATOS_prob_ff_hydro_short_fc_retrain_best_kfold.sh']
+[ECMWF-INFO -sbatch] - ARG --cpus_per_task=64
+[ECMWF-INFO -sbatch] - ARG --error=log_atos/retrain_ml-%J.out
+[ECMWF-INFO -sbatch] - ARG --job_name=retrain_ml
+[ECMWF-INFO -sbatch] - ARG --mail_type=FAIL
+[ECMWF-INFO -sbatch] - ARG --mail_user=fatima.pillosu@ecmwf.int
+[ECMWF-INFO -sbatch] - ARG --output=log_atos/retrain_ml-%J.out
+[ECMWF-INFO -sbatch] - ARG --qos=ng
+[ECMWF-INFO -sbatch] - ARG --time=2-00:00:00
+[ECMWF-INFO -sbatch] - ARG --mem=128G
+[ECMWF-INFO -sbatch] - ARG --gpus=8
+[ECMWF-INFO -sbatch] - ------------------------------
+[ECMWF-INFO -sbatch] - jobtag: mofp-retrain_ml-1x64-/etc/ecmwf/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood/code/processed/log_atos/retrain_ml-_.out
+[ECMWF-INFO -sbatch] - ['/usr/bin/sbatch', '--cpus-per-task=64', '--error=log_atos/retrain_ml-%J.out', '--job-name=retrain_ml', '--mail-type=FAIL', '--mail-user=fatima.pillosu@ecmwf.int', '--output=log_atos/retrain_ml-%J.out', '--qos=ng', '--time=2-00:00:00', '--mem=128G', '--gpus=8', '--licenses=h2resw01', '--export=EC_user_time_limit=2-00:00:00', '/etc/ecmwf/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood/code/processed/13a_SubmitterATOS_prob_ff_hydro_short_fc_retrain_best_kfold.sh']
+[ECMWF-INFO -sbatch] - sbatch executed on ac
+[ECMWF-INFO -sbatch] - Job queued on ac using method local
+[ECMWF-INFO -sbatch] - Submitted batch job 31927571

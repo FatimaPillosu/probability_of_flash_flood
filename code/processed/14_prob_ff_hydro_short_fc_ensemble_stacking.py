@@ -4,10 +4,12 @@ from typing import List, Tuple
 import numpy as np
 import pandas as pd
 import joblib
-import xgboost
-import lightgbm
+import json
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_curve, auc, recall_score, f1_score, precision_recall_curve
+from xgboost import XGBClassifier
+from sklearn.model_selection import train_test_split
+import optuna
+from sklearn.metrics import roc_curve, auc, average_precision_score, precision_recall_curve
 from sklearn.calibration import calibration_curve
 import matplotlib.pyplot as plt
 
@@ -28,6 +30,7 @@ logger = logging.getLogger(__name__)
 # INPUT PARAMETERS DESCRIPTION
 # feature_cols (list of strings): list of feature columns' names, i.e. model's predictors.
 # target_col (string): target column's name, i.e. model's predictand.
+# eval_metric (string): evaluation metric used for hyperparameter tuning.
 # base_model_name_list (list of strings): names of the considered machine learning models. Valid values are:
 #                                                                 - random_forest_xgboost
 #                                                                 - random_forest_lightgbm
@@ -36,6 +39,7 @@ logger = logging.getLogger(__name__)
 #                                                                 - gradient_boosting_catboost
 #                                                                 - gradient_boosting_adaboost
 #                                                                 - feed_forward_keras
+# kfold_count (integer): count of outter k-folds considering during the hyperparameters tunning.
 # meta_model (string): name of the chosen meta-model.
 # git_repo (string): repository's local path.
 # file_in_train (string): relative path of the file containing the training dataset.
@@ -45,13 +49,15 @@ logger = logging.getLogger(__name__)
 
 ##############################################################################################################################################
 # INPUT PARAMETERS
-feature_cols = ["tp_prob_1", "tp_prob_50", "swvl", "sdfor", "lai"] 
+feature_cols = ["tp_prob_1", "tp_prob_max_1_adj_gb", "tp_prob_50", "tp_prob_max_50_adj_gb", "swvl", "sdfor", "lai"]
 target_col = "ff"
-base_model_name_list = ["gradient_boosting_xgboost", "gradient_boosting_lightgbm", "gradient_boosting_catboost", "random_forest_xgboost", "random_forest_lightgbm"]
+eval_metric = "auprc"
+base_model_name_list = ["random_forest_xgboost", "random_forest_lightgbm", "gradient_boosting_xgboost", "gradient_boosting_lightgbm", "gradient_boosting_catboost", "gradient_boosting_adaboost"]
+kfold_count = 5
 meta_model = "gradient_boosting_xgboost"
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
 file_in_train = "data/processed/11_prob_ff_hydro_short_fc_combine_pdt/pdt_2001_2020.csv"
-file_in_test = "data/processed/11_prob_ff_hydro_short_fc_combine_pdt/pdt_2021_2023.csv"
+file_in_test = "data/processed/11_prob_ff_hydro_short_fc_combine_pdt/pdt_2021_2024.csv"
 dir_in = "data/processed/13_prob_ff_hydro_short_fc_retrain_best_kfold"
 dir_out = "data/processed/14_prob_ff_hydro_short_fc_ensemble_stacking"
 ##############################################################################################################################################
@@ -101,71 +107,160 @@ def load_data(csv_path: str, feature_cols: List[str], target_col: str) -> Tuple[
 
       return X, y
 
+
+##################
+# VERIFICATION UTIL #
+##################
+
+def verification(y_test, pred_prob_test):
+
+      precision, recall, thresholds = precision_recall_curve(y_test, pred_prob_test)
+      f1_curve = 2 * (precision * recall) / (precision + recall + 1e-6)
+      best_idx = np.argmax(f1_curve)
+      pred_test = (pred_prob_test_av >= thresholds[best_idx]).astype(int)
+
+      obs_freq, fc_pred = calibration_curve(y_test, pred_prob_test, n_bins=100)
+      far, hr, _ = roc_curve(y_test, pred_prob_test)
+      auprc = average_precision_score(y_test, pred_prob_test)
+      aroc = auc(far, hr)
+      fb = pred_test.sum() / max(y_test[pred_test == 1].sum(), 1)
+
+      return precision, recall, obs_freq, fc_pred, far, hr, auprc, aroc, fb
+
+
 ##############################################################################
 
-print("XGBoost version:", xgboost.__version__)
-print("LightGBM version:", lightgbm.__version__)
-exit()
 
+# Create the output directory
+dir_out_temp = git_repo + "/" + dir_out + "/" + eval_metric
+os.makedirs(dir_out_temp, exist_ok=True)
 
 
 # Read the training and the test datasets
-print(f"Reading the training dataset")
+print(f"\nReading the training dataset")
 file_in_train = git_repo + "/" + file_in_train
 X_train, y_train = load_data(file_in_train, feature_cols, target_col)
 
-print(f"Reading the test dataset")
+print(f"\nReading the test dataset")
 file_in_test = git_repo + "/" + file_in_test
 X_test, y_test = load_data(file_in_test, feature_cols, target_col)
 
-# Creating the base models for the ensemble stacking
-print("Creating the base models for the ensemble stacking")
-feature_meta_model_train = []
-feature_meta_model_test = []
-for base_model_name in base_model_name_list:
-      file_base_model = git_repo + "/" + dir_in + "/" + base_model_name + "/model.joblib"
-      base_model = joblib.load(file_base_model) 
-      feature_meta_model_train.append(base_model.predict(X_train))
-      feature_meta_model_test.append(base_model.predict(X_test))
 
-feature_meta_model_train = pd.DataFrame(np.column_stack(feature_meta_model_train), columns=base_model_name_list)
-feature_meta_model_test = pd.DataFrame(np.column_stack(feature_meta_model_test), columns=base_model_name_list)
+# Creating or reading the base models for the ensemble stacking
+file_base_models_train = f"{dir_out_temp}/base_models_train.csv"
+file_base_models_test = f"{dir_out_temp}/base_models_test.csv"
 
-# Training the meta-model
-print("Training the meta-model")
-meta_model = LogisticRegression()
-meta_model.fit(feature_meta_model_test, y_test)
-y_pred_prob = meta_model.predict_proba(feature_meta_model_train)[:, 1]
+if not os.path.exists(file_base_models_train) or not os.path.exists(file_base_models_test):
+      
+      feature_meta_model_train = []
+      feature_meta_model_test = []
+      col_names_list = []
+      for base_model_name in base_model_name_list:
+            for kfold in range(kfold_count):
+                  print(f"\nCreating the base models from: " + base_model_name + " - fold n." + str(kfold + 1))
+                  file_base_model = git_repo + "/" + dir_in + "/" + eval_metric + "/" + base_model_name + "/fold" + str(kfold + 1) + "/model.joblib"
+                  base_model = joblib.load(file_base_model)
+                  feature_meta_model_train.append(base_model.predict_proba(X_train)[:, 1])
+                  feature_meta_model_test.append(base_model.predict_proba(X_test)[:, 1])
+                  col_names_list.append(base_model_name + "_fold" + str(kfold))
+      feature_meta_model_train = pd.DataFrame(np.column_stack(feature_meta_model_train), columns=col_names_list)
+      feature_meta_model_test = pd.DataFrame(np.column_stack(feature_meta_model_test), columns=col_names_list)
+      #feature_meta_model_train.to_csv(file_base_models_train, sep = ",", index=False)
+      #feature_meta_model_test.to_csv(file_base_models_test,  sep = ",", index=False)
 
-precision, recall_curve, thresholds = precision_recall_curve(y_test, y_pred_prob)
-f1_curve = 2 * (precision * recall_curve) / (precision + recall_curve + 1e-6)
-best_idx = np.argmax(f1_curve)
-y_pred = (y_pred_prob >= thresholds[best_idx]).astype(int)
+else:
+      
+      print(f"\nReading the base models")
+      feature_meta_model_train = pd.read_csv(file_base_models_train, delimiter=",", header=0)
+      feature_meta_model_test = pd.read_csv(file_base_models_test, delimiter=",", header=0)
+
+
+# Training the meta-model (XGBoost) with hyperparameter optimisation with Optuna
+print(f"\nTraining the meta-model")
+
+X_tr, X_val, y_tr, y_val = train_test_split(
+    feature_meta_model_train, y_train, test_size=0.2,
+    stratify=y_train, random_state=42
+)
+
+def objective(trial):
+      
+      logger.info(f"★ Trial {trial.number} started")
+
+      params = {
+            "n_estimators":     trial.suggest_int("n_estimators", 100, 800),
+            "max_depth":        trial.suggest_int("max_depth", 2, 8),
+            "learning_rate":    trial.suggest_float("learning_rate", 1e-3, 0.3, log=True),
+            "subsample":        trial.suggest_float("subsample", 0.5, 1.0),
+            "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0),
+            "gamma":            trial.suggest_float("gamma", 0.0, 5.0),
+            "min_child_weight": trial.suggest_float("min_child_weight", 0.0, 10.0),
+            "objective":        "binary:logistic",
+            "eval_metric":      "aucpr",
+            "random_state":     42,
+            "n_jobs":           4,
+            }
+      
+      model = XGBClassifier(**params)
+      model.fit(X_tr, y_tr, eval_set=[(X_val, y_val)], verbose=False)
+      y_val_prob = model.predict_proba(X_val)[:, 1]
+      
+      return average_precision_score(y_val, y_val_prob)
+
+study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=42))
+study.optimize(objective, n_trials=20)
+
+best_params = study.best_params
+best_params.update({
+    "objective": "binary:logistic",
+    "eval_metric": "aucpr",
+    "random_state": 42,
+    "n_jobs": 4
+})
+
+meta_model = XGBClassifier(**best_params)
+meta_model.fit(feature_meta_model_train, y_train)
+pred_prob_test_es = meta_model.predict_proba(feature_meta_model_test)[:, 1]
+
+joblib.dump(meta_model, os.path.join(dir_out_temp, "meta_model.joblib"))
+with open(os.path.join(dir_out_temp, "best_params.json"), "w") as fp:
+      json.dump(best_params, fp, indent=2)
+
+# Computing the average probabilities
+pred_prob_test_av = feature_meta_model_test.mean(axis=1)
 
 # Testing the model
-print("Testing the model")
-obs_freq, fc_pred = calibration_curve(y_test, y_pred_prob, n_bins=100)
-far, hr, thr_roc = roc_curve(y_test, y_pred_prob)
-aroc = auc(far, hr)
-recall = recall_score(y_test, y_pred)
-f1 = f1_score(y_test, y_pred)
+print(f"\nTesting the blended multi-model")
+precision_es, recall_es, obs_freq_es, fc_pred_es, far_es, hr_es, auprc_es, aroc_es, fb_es = verification(y_test, pred_prob_test_es)
+precision_av, recall_av, obs_freq_av, fc_pred_av, far_av, hr_av, auprc_av, aroc_av, fb_av = verification(y_test, pred_prob_test_av)
 
-print(recall)
-print(f1)
+print(f"AROC_ES = {aroc_es}, AROC_AV = {aroc_av}")
+print(f"AUPRC_ES = {auprc_es}, AUPRC_AV = {auprc_av}")
+print(f"FB_ES = {fb_es}, FB_AV = {fb_av}")
 
-plt.plot(fc_pred, obs_freq, lw = 0.5, marker=".", linestyle="-")
-plt.plot([0, 1], [0, 1], linestyle="-", color="gray")
-plt.xlabel("Forecast probability")
-plt.ylabel("Observed frequency")
-plt.title("Reliability Diagram - Ensemble")
+plt.plot(recall_es, precision_es, color = "blue", lw = 1)
+plt.plot(recall_av, precision_av, color = "deeppink", lw = 1)
+plt.plot([0, 1], [1, 0], linestyle="-", color="gray")
+plt.xlabel("Recall")
+plt.ylabel("Precision")
+plt.title("Precision-Recall Curve (Ensemble)")
 plt.show()
 
-plt.plot(far, hr, lw=0.5, label="AROC = %0.5f" % aroc)
+plt.plot(fc_pred_es, obs_freq_es, color = "blue", lw = 1)
+plt.plot(fc_pred_av, obs_freq_av, color = "deeppink", lw = 1)
+plt.plot([0, 1], [0, 1], color="gray", lw = 0.5)
+plt.xlabel("Forecast probability")
+plt.ylabel("Observed frequency")
+plt.title("Reliability Diagram (Ensemble)")
+plt.show()
+
+plt.plot(far_es, hr_es, color = "blue", lw=1, label="AROC = %0.5f" % aroc_es)
+plt.plot(far_av, hr_av, color = "deeppink", lw=1, label="AROC = %0.5f" % aroc_av)
 plt.plot([-0.01, 1.01], [-0.01, 1.01], linestyle="-", color="gray")  
 plt.xlim([-0.01, 1.01])
 plt.ylim([-0.01, 1.01])
 plt.xlabel("False Alarm Rate")
 plt.ylabel("Hit Rate")
-plt.title("Receiver Operating Characteristic (ROC) Curve")
+plt.title("ROC Curve (Ensemble)")
 plt.legend(loc="lower right")
 plt.show()
