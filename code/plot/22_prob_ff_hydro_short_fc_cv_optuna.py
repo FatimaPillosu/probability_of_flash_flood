@@ -54,7 +54,7 @@ for ind_ml, ml_trained in enumerate(ml_trained_list):
       median = []
       max = []
       min = []
-      plt.figure(figsize=(7, 4))
+      plt.figure(figsize=(4, 4))
 
       for ind_k in range(num_k_outer):
             df = pd.read_csv(f'{dir_in_temp}/trials_rep1_fold{ind_k+1}.csv', delimiter = ",")
@@ -64,8 +64,8 @@ for ind_ml, ml_trained in enumerate(ml_trained_list):
             max.append(eval_metric_vals.max())
             min.append(eval_metric_vals.min())
             
-      plt.plot(np.arange(num_k_outer), np.array(mean), color = colours_ml_trained, lw = 2)
-      plt.fill_between(np.arange(num_k_outer), np.array(min), np.array(max, ), color = colours_ml_trained, alpha=0.4, edgecolor="none")
+      plt.plot(np.arange(1, num_k_outer + 1), np.array(mean), color = colours_ml_trained, lw = 2)
+      plt.fill_between(np.arange(1, num_k_outer + 1), np.array(min), np.array(max, ), color = colours_ml_trained, alpha=0.4, edgecolor="none")
       plt.title("Model performance", fontweight='bold', color="#333333", fontsize=14)
       plt.xlabel("Outer folds", color = "#333333", fontsize = 12)
       plt.ylabel(eval_metric.upper(), color = "#333333", fontsize = 12)
@@ -78,7 +78,6 @@ for ind_ml, ml_trained in enumerate(ml_trained_list):
       os.makedirs(dir_out_temp, exist_ok=True)        
       plt.savefig(f'{dir_out_temp}/model_generalisation.png', dpi=1000)
       plt.close()
-exit()
 
 # Plots about hyperparameters importance
 meta_cols = {"number", "value", "state", "datetime_start", "datetime_complete", "wall_secs", "duration"}
