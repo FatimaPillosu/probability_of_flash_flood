@@ -182,6 +182,7 @@ for ind_ml, ml_trained in enumerate(ml_trained_list):
       plt.ylabel(eval_metric, color = "#333333", fontsize = 12)
       plt.tick_params(axis='x', colors='#333333', labelsize=12)
       plt.tick_params(axis='y', colors='#333333', labelsize=12)
+      plt.ylim([0,0.04])
       plt.xticks(df["number"] + 1)
       plt.xticks(df["number"]+1, [str(i) if (i % 5 == 0 or i == 1) else "" for i in df["number"]+1])  # label every 5th tick
       plt.tight_layout()
