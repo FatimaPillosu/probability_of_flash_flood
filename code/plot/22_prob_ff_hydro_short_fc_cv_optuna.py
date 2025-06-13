@@ -2,7 +2,6 @@ import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
 
 ######################################################################################
 # CODE DESCRIPTION
@@ -10,7 +9,7 @@ from matplotlib.ticker import MaxNLocator
 
 # Usage: python3 22_prob_ff_hydro_short_fc_cv_optuna.py
 
-# Runtime: ~ 3 minutes.
+# Runtime: ~ 1 minute.
 
 # Author: Fatima M. Pillosu <fatima.pillosu@ecmwf.int> | ORCID 0000-0001-8127-0990
 # License: Creative Commons Attribution-NonCommercial_ShareAlike 4.0 International
@@ -168,7 +167,7 @@ for ind_ml, ml_trained in enumerate(ml_trained_list):
       
       colours_ml_trained = colours_ml_trained_list[ind_ml]
       dir_in_temp = f'{git_repo}/{dir_in}/{eval_metric}/{ml_trained}/optuna'
-      plt.figure(figsize=(5, 4))
+      plt.figure(figsize=(4, 4))
 
       alpha = [0.1, 0.2, 0.4, 0.6, 0.9]
       for ind_k in range(num_k_outer):
