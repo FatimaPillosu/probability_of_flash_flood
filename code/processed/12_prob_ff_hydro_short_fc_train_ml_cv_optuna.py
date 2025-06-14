@@ -18,11 +18,9 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import RepeatedStratifiedKFold, StratifiedShuffleSplit
 from sklearn.metrics import roc_curve, auc, average_precision_score, precision_recall_curve
 from sklearn.calibration import calibration_curve
-from sklearn.tree import DecisionTreeClassifier
 from xgboost import XGBClassifier, XGBRFClassifier
 from lightgbm import LGBMClassifier
 from catboost import CatBoostClassifier
-from sklearn.ensemble import AdaBoostClassifier
 import xgboost as xgb
 from packaging import version
 from tensorflow import keras
@@ -43,16 +41,18 @@ import joblib
 # License: Creative Commons Attribution-NonCommercial_ShareAlike 4.0 International
 
 # INPUT PARAMETERS DESCRIPTION
-# feature_cols (list of strings): list of feature columns' names, i.e. model's predictors.
-# target_col (string): target column's name, i.e. model's predictand.
 # model_2_train_list (list of strings): names of the models to train. Valid values are:
 #                                                                 - random_forest_xgboost
 #                                                                 - random_forest_lightgbm
 #                                                                 - gradient_boosting_xgboost
 #                                                                 - gradient_boosting_lightgbm
 #                                                                 - gradient_boosting_catboost
-#                                                                 - gradient_boosting_adaboost
 #                                                                 - feed_forward_keras
+# eval_metric (string): evaluation metric for the data-driven models. Valid values are:
+#                                         - auc: area under the roc curve.
+#                                         - auprc: area under the precion-recall curve.
+# feature_cols (list of strings): list of feature columns' names, i.e. model's predictors.
+# target_col (string): target column's name, i.e. model's predictand.
 # git_repo (string): repository's local path.
 # file_in (string): relative path of the file containing the training dataset.
 # dir_out (string): relative path of the directory containing the trained machine learning models.
@@ -60,11 +60,12 @@ import joblib
 ##################################################################################################
 # INPUT PARAMETERS
 model_2_train = sys.argv[1]
+eval_metric = sys.argv[2]
 feature_cols = ["tp_prob_1", "tp_prob_max_1_adj_gb", "tp_prob_50", "tp_prob_max_50_adj_gb", "swvl", "sdfor", "lai"]
 target_col = "ff"
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
 file_in = "data/processed/11_prob_ff_hydro_short_fc_combine_pdt/pdt_2001_2020.csv"
-dir_out = "data/processed/12_prob_ff_hydro_short_fc_train_ml_cv_optuna/aroc"
+dir_out = "data/processed/12_prob_ff_hydro_short_fc_train_ml_cv_optuna"
 ##################################################################################################
 
 
@@ -124,18 +125,61 @@ def load_data(
       return X, y
 
 
+##################
+# METRICS UTILITIES #
+##################
+
+def get_keras_metric(metric_name: str):
+    if metric_name == 'auc':
+        return keras.metrics.AUC(name='auc')
+    elif metric_name == 'auprc':
+        return keras.metrics.AUC(name='auprc', curve='PR')
+    else:
+        raise ValueError(f"Unsupported metric: {metric_name}")
+
+def evaluate_metric(y_true, y_pred_prob, metric_name: str):
+    if metric_name == 'auc':
+        return evaluate_auc(y_true, y_pred_prob)
+    elif metric_name == 'auprc':
+        return evaluate_auprc(y_true, y_pred_prob)
+    else:
+        raise ValueError(f"Unsupported metric: {metric_name}")
+
+def get_tree_metric_config(metric_name: str):
+      if metric_name == 'auc':
+            return {
+                  'xgb_callback_metric': 'validation_0-auc',
+                  'lgb_eval_metric': 'auc',
+                  'catboost_eval_metric': 'AUC'
+            }
+      elif metric_name == 'auprc':
+            return {
+                  'xgb_callback_metric': 'validation_0-aucpr',
+                  'lgb_eval_metric': 'average_precision',
+                  'catboost_eval_metric': 'PRAUC:type=Classic'
+            }
+      else:
+            raise ValueError(f"Unsupported metric: {metric_name}")
+
+
 #################
 # MODEL REGISTRY #
 #################
 
-def sigmoid(x):
-    return 1.0 / (1.0 + np.exp(-x))
+def get_loss_and_weights(trial, y_train):
+      loss_choice = trial.suggest_categorical("loss_fn", ["bce", "weighted_bce"])
+      if loss_choice == "bce":
+            loss_fn = keras.losses.BinaryCrossentropy()
+            class_weights = None
+            pos_weight = 1.0
+      elif loss_choice == "weighted_bce":
+            pos_weight = trial.suggest_float("pos_weight", 1.0, 10.0)
+            loss_fn = keras.losses.BinaryCrossentropy()
+            class_weights = {0: 1.0, 1: pos_weight}
+      return loss_fn, class_weights, pos_weight
 
-def lgb_auprc(preds, dataset):
-    y_true = dataset.get_label()
-    return "auprc", average_precision_score(y_true, sigmoid(preds)), True
-
-def build_keras_model(trial, input_dim: int):
+def build_keras_model(trial, input_dim: int, y_train, metric_name: str):
+      loss_fn, class_weights, _ = get_loss_and_weights(trial, y_train)
       n_layers = trial.suggest_int("n_layers", 1, 3)
       model = keras.Sequential()
       model.add(keras.Input(shape=(input_dim,)))
@@ -144,15 +188,15 @@ def build_keras_model(trial, input_dim: int):
             model.add(keras.layers.Dense(num_units, activation='relu'))
             dropout_rate = trial.suggest_float(f"dropout_{i}", 0.0, 0.5)
             model.add(keras.layers.Dropout(dropout_rate))
-      model.add(keras.layers.Dense(2, activation='softmax'))
+      model.add(keras.layers.Dense(1, activation='sigmoid'))
       lr = trial.suggest_float("learning_rate", 1e-4, 1e-2, log=True)
       opt = keras.optimizers.Adam(learning_rate=lr)
-      model.compile(optimizer=opt, loss='sparse_categorical_crossentropy', metrics=[])
-      return model
+      model.compile(optimizer=opt, loss=loss_fn, metrics=[get_keras_metric(metric_name)])
+      return model, class_weights
 
 ############################################
-def build_feed_forward_keras(trial, input_dim=None):
-    return build_keras_model(trial, input_dim=input_dim)
+def build_feed_forward_keras(trial, input_dim=None, y_train=None, metric_name: str = 'auc'):
+      return build_keras_model(trial, input_dim=input_dim, y_train=y_train, metric_name=metric_name)
 
 #################################
 def build_xgb_rf(trial, *_):
@@ -225,21 +269,6 @@ def build_catboost(trial, *_):
       }
       return CatBoostClassifier(**params)
 
-######################################
-def build_adaboost_gb(trial, *_):
-      
-      stump = DecisionTreeClassifier(
-            max_depth=trial.suggest_int("dt_max_depth", 1, 3),
-            min_samples_leaf=trial.suggest_int("dt_min_samples_leaf", 1, 10),
-            )
-
-      return AdaBoostClassifier(
-            estimator=stump,              
-            n_estimators=trial.suggest_int("n_estimators", 100, 500),
-            learning_rate=trial.suggest_float("learning_rate", 0.01, 1.0),
-            algorithm="SAMME",
-            random_state=42
-            )
 
 ##################
 MODEL_REGISTRY = {
@@ -249,15 +278,18 @@ MODEL_REGISTRY = {
       'random_forest_lightgbm': build_lgb_rf,
       'gradient_boosting_lightgbm': build_lgb_gb,
       'gradient_boosting_catboost': build_catboost,
-      'gradient_boosting_adaboost': build_adaboost_gb
       }
 
 ###################################################
-def build_model(model_type: str, trial, input_dim: int = None):
+def build_model(model_type: str, trial, input_dim: int = None, y_train=None, metric_name: str = 'auc'):
       if model_type not in MODEL_REGISTRY:
             raise ValueError(f"Unknown model_type: {model_type}")
       build_func = MODEL_REGISTRY[model_type]
-      return build_func(trial, input_dim)
+      if model_type == 'feed_forward_keras':
+            return build_func(trial, input_dim=input_dim, y_train=y_train, metric_name=metric_name)
+      else:
+            return build_func(trial)
+
 
 
 ##########################
@@ -276,12 +308,11 @@ def _make_dir_if_not_exists(path: str):
       os.makedirs(path, exist_ok=True)
 
 ##################################################################
-def inner_objective(trial, model_type, X_train, y_train, n_splits=5, n_repeats=10):
+def inner_objective(trial, model_type, X_train, y_train, n_splits=5, n_repeats=10, metric_name='auc'):
 
       logger.info(f"   · Trial {trial.number} started") 
 
-      # --- Neural Network Models --- #
-      if model_type == 'feed_forward_keras':
+      if model_type == 'feed_forward_keras': # Neural Network Models
             
             kf = RepeatedStratifiedKFold(
                   n_splits=n_splits, 
@@ -299,15 +330,15 @@ def inner_objective(trial, model_type, X_train, y_train, n_splits=5, n_repeats=1
                   X_trf = scaler.transform(X_trf)
                   X_valf = scaler.transform(X_valf)
 
-                  model = build_model(model_type, trial, input_dim = X_trf.shape[1])
+                  model, class_weights = build_model(model_type, trial, input_dim=X_trf.shape[1], y_train=y_trf, metric_name=metric_name)
 
                   early_stop = keras.callbacks.EarlyStopping(
-                        monitor='val_loss',
+                        monitor=f'val_{metric_name}',
                         patience=2,
                         restore_best_weights=True
                         )
                   
-                  pruning_cb = TFKerasPruningCallback(trial, 'val_loss')
+                  pruning_cb = TFKerasPruningCallback(trial, f'val_{metric_name}')
 
                   model.fit(
                         X_trf, 
@@ -316,76 +347,82 @@ def inner_objective(trial, model_type, X_train, y_train, n_splits=5, n_repeats=1
                         epochs=20,
                         validation_data=(X_valf, y_valf.values),
                         callbacks=[early_stop, pruning_cb],
+                        class_weight=class_weights,
                         verbose=0
                         )
 
-                  y_val_prob = model.predict(X_valf)[:, 1]
-                  scores.append(evaluate_auc(y_valf, y_val_prob))
+                  y_val_prob = model.predict(X_valf).ravel()
+                  scores.append(evaluate_metric(y_valf, y_val_prob, metric_name))
 
             return np.mean(scores)
       
-      # --- Tree-Based Models --- #
-      kf = RepeatedStratifiedKFold(
-            n_splits=n_splits, 
-            n_repeats=n_repeats,
-            random_state=42
-            )
+      else: # Tree-Based Models
+
+            _, _, pos_weight = get_loss_and_weights(trial, y_train)
+            metric_cfg = get_tree_metric_config(metric_name)
+
+            kf = RepeatedStratifiedKFold(
+                  n_splits=n_splits, 
+                  n_repeats=n_repeats,
+                  random_state=42
+                  )
       
-      scores = []
+            scores = []
 
-      for train_idx, val_idx in kf.split(X_train, y_train):
-            
-            X_tr, X_val = X_train.iloc[train_idx], X_train.iloc[val_idx]
-            y_tr, y_val = y_train.iloc[train_idx], y_train.iloc[val_idx]
+            for train_idx, val_idx in kf.split(X_train, y_train):
+                  
+                  X_tr, X_val = X_train.iloc[train_idx], X_train.iloc[val_idx]
+                  y_tr, y_val = y_train.iloc[train_idx], y_train.iloc[val_idx]
 
-            model = build_model(model_type, trial)
+                  model = build_model(model_type, trial, y_tr)
 
-            if model_type in {'gradient_boosting_xgboost', 'random_forest_xgboost'}:
-            
-                  if HAS_XGB_CALLBACK:
+                  if hasattr(model, 'set_params') and 'scale_pos_weight' in model.get_params():
+                        model.set_params(scale_pos_weight=pos_weight)
+
+                  if model_type in {'gradient_boosting_xgboost', 'random_forest_xgboost'}:
+                  
+                        if HAS_XGB_CALLBACK:
+                              model.fit(
+                                    X_tr,
+                                    y_tr,
+                                    eval_set=[(X_val, y_val)],
+                                    verbose=False,
+                                    callbacks=[XGBoostPruningCallback(trial, metric_cfg['xgb_callback_metric'])],
+                              )
+                        else:
+                              model.fit(
+                                    X_tr,
+                                    y_tr,
+                                    eval_set=[(X_val, y_val)],
+                                    verbose=False,
+                              )
+                        
+                  elif model_type in {"gradient_boosting_lightgbm", "random_forest_lightgbm"}:
+                        
                         model.fit(
                               X_tr,
                               y_tr,
                               eval_set=[(X_val, y_val)],
-                              verbose=False,
-                              callbacks=[XGBoostPruningCallback(trial, "validation_0-auc")],
-                        )
-                  else:
+                              eval_metric=metric_cfg['lgb_eval_metric'],
+                              callbacks=[LightGBMPruningCallback(trial, metric_cfg['lgb_eval_metric'])],
+                              )
+
+                  elif model_type == "gradient_boosting_catboost":
+                        
+                        model.set_params(scale_pos_weight=pos_weight)
+
                         model.fit(
                               X_tr,
                               y_tr,
-                              eval_set=[(X_val, y_val)],
+                              eval_set=(X_val, y_val),
                               verbose=False,
-                        )
-                 
-            elif model_type in {"gradient_boosting_lightgbm", "random_forest_lightgbm"}:
+                              callbacks=[CatBoostPruningCallback(trial, metric_cfg['catboost_eval_metric'])],
+                              )
                   
-                  model.fit(
-                        X_tr,
-                        y_tr,
-                        eval_set=[(X_val, y_val)],
-                        eval_metric="auc",
-                        callbacks=[LightGBMPruningCallback(trial, "auc")],
-                        )
-
-            elif model_type == "gradient_boosting_catboost":
-                  
-                  model.fit(
-                        X_tr,
-                        y_tr,
-                        eval_set=(X_val, y_val),
-                        verbose=False,
-                        callbacks=[CatBoostPruningCallback(trial, "AUC")],
-                        )
+                  y_val_prob = model.predict_proba(X_val)[:, 1]
+                  scores.append(evaluate_auc(y_val, y_val_prob))
             
-            else:
-                  
-                  model.fit(X_tr, y_tr)
-
-            y_val_prob = model.predict_proba(X_val)[:, 1]
-            scores.append(evaluate_auprc(y_val, y_val_prob))
-      
-      return np.mean(scores)
+            return np.mean(scores)
 
 def train_with_nested_cv_and_optuna(
       X: pd.DataFrame,
@@ -395,7 +432,8 @@ def train_with_nested_cv_and_optuna(
       n_trials: int = 100,
       n_outer: int = 10,
       n_inner: int = 5,
-      n_repeats: int = 5
+      n_repeats: int = 5,
+      metric_name: str = 'auc'
       ):
       
       outer_cv = RepeatedStratifiedKFold(
@@ -424,7 +462,7 @@ def train_with_nested_cv_and_optuna(
             X_train_outer, X_test_outer = X.iloc[train_index], X.iloc[test_index]
             y_train_outer, y_test_outer = y.iloc[train_index], y.iloc[test_index]
 
-            fold_logger.info("Launching Optuna study…")
+            fold_logger.info(f"Launching Optuna study considering evaluation metric - {metric_name}")
 
             study = optuna.create_study(
                   direction='maximize', 
@@ -433,12 +471,12 @@ def train_with_nested_cv_and_optuna(
                   )
             study.optimize(
                   lambda t: inner_objective(
-                        t, model_type, X_train_outer, y_train_outer, n_splits=n_inner
+                        t, model_type, X_train_outer, y_train_outer, n_splits=n_inner, metric_name=metric_name
                         ),
                   n_trials=n_trials,
                   )
 
-            # ---- SAVE TRIAL DATA FOR PLOTS ---- #
+            # ---- SAVE TRIAL DATA FOR PLOTS ON OPTIMISATION ---- #
             optuna_dir = os.path.join(dir_out, "optuna")
             _make_dir_if_not_exists(optuna_dir)
 
@@ -460,11 +498,23 @@ def train_with_nested_cv_and_optuna(
             fixed_trial = FixedTrial(best_params)
 
             if model_type == 'feed_forward_keras':
+                  _, _, pos_weight = get_loss_and_weights(FixedTrial(best_params), y_train_outer)
+                  best_params["loss_fn_details"] = {
+                        "loss_fn": best_params.get("loss_fn", "bce"),
+                        "pos_weight": best_params.get("pos_weight", 1.0),
+                        "alpha": best_params.get("alpha") if "alpha" in best_params else None,
+                        "gamma": best_params.get("gamma") if "gamma" in best_params else None
+                        }
                   final_model = build_model(model_type, fixed_trial, input_dim=X_train_outer.shape[1])
                   scaler = StandardScaler().fit(X_train_outer)
                   X_train_scaled = scaler.transform(X_train_outer)
                   X_test_scaled = scaler.transform(X_test_outer)
             else:
+                  _, _, pos_weight = get_loss_and_weights(FixedTrial(best_params), y_train_outer)
+                  best_params["loss_fn_details"] = {
+                        "loss_fn": best_params.get("loss_fn", "bce"),
+                        "scale_pos_weight": pos_weight
+                        }
                   final_model = build_model(model_type, fixed_trial)
                   X_train_scaled = X_train_outer
                   X_test_scaled = X_test_outer
@@ -536,12 +586,22 @@ logger.info(f"\n\nReading the training dataset")
 file_in_pdt = os.path.join(git_repo, file_in)
 X, y = load_data(file_in_pdt, feature_cols, target_col)
 
-# Reduce the training dataset for faster training, while maintaing the ratio between yes- and non-events
-train_frac = 0.05
-sss = StratifiedShuffleSplit(n_splits=1, train_size=train_frac, random_state=42)
-subset_idx, _ = next(sss.split(X, y))
-X_sub = X.iloc[subset_idx]
-y_sub = y.iloc[subset_idx] 
+X_pos = X[y == 1]
+y_pos = y[y == 1]
+X_neg = X[y == 0]
+y_neg = y[y == 0]
+X_neg_sampled = X_neg.sample(n=len(X_pos), random_state=42)
+y_neg_sampled = y_neg.loc[X_neg_sampled.index]
+X_balanced = pd.concat([X_pos, X_neg_sampled], axis=0).reset_index(drop=True)
+y_balanced = pd.concat([y_pos, y_neg_sampled], axis=0).reset_index(drop=True)
+X_sub, y_sub = X_balanced, y_balanced
+
+# # Reduce the training dataset for faster training, while maintaing the ratio between yes- and non-events
+# train_frac = 0.05
+# sss = StratifiedShuffleSplit(n_splits=1, train_size=train_frac, random_state=42)
+# subset_idx, _ = next(sss.split(X, y))
+# X_sub = X.iloc[subset_idx]
+# y_sub = y.iloc[subset_idx] 
 
 # Train the considered machine learning models
 dir_out_temp = os.path.join(git_repo, dir_out, model_2_train)
@@ -553,5 +613,6 @@ results = train_with_nested_cv_and_optuna(
       n_trials = 20,
       n_outer = 5,
       n_inner = 3,
-      n_repeats = 1
+      n_repeats = 1,
+      metric_name=eval_metric
       )
