@@ -167,7 +167,8 @@ def evaluate_metric(y_true, y_pred_prob, metric_name: str):
       else:
             raise ValueError(f"Unsupported metric: {metric_name}")
 
-def get_tree_metric_config(metric_name: str):
+def get_tree_metric_config(metric_name: str, loss_fn_choice:str):
+      
       if metric_name == 'auc':
             return {
                   'xgb_eval_metric': 'auc',
@@ -175,16 +176,27 @@ def get_tree_metric_config(metric_name: str):
                   'lgb_eval_metric': 'auc',
                   'lgb_callback_metric': 'auc',
                   'catboost_eval_metric': 'AUC',
+                  'catboost_callback_metric': 'AUC',
             }
+      
       elif metric_name == 'auprc':
+            
+            if loss_fn_choice == "bce":
+                  catboost_callback_metric = 'PRAUC:use_weights=false'
+            elif loss_fn_choice == "weighted_bce":
+                  catboost_callback_metric = 'PRAUC'
+            
             return {
                   'xgb_eval_metric': 'aucpr',
                   'xgb_callback_metric': 'validation_0-aucpr',
                   'lgb_eval_metric': 'average_precision',
                   'lgb_callback_metric': 'average_precision',
                   'catboost_eval_metric': 'PRAUC:type=Classic',
+                  'catboost_callback_metric': catboost_callback_metric,
             }
+      
       else:
+            
             raise ValueError(f"Unsupported metric: {metric_name}")
       
 
@@ -274,7 +286,7 @@ def build_feed_forward_keras(trial, input_dim=None, y_train=None, metric_name: s
 
 #################################
 def build_xgb_rf(trial, *_, metric_name: str, y_train=None, model_type="random_forest_xgboost", loss_fn_choice="bce"):
-      metric_cfg = get_tree_metric_config(metric_name)
+      metric_cfg = get_tree_metric_config(metric_name, loss_fn_choice)
       loss_cfg = get_loss_and_weights(trial, y_train, model_type=model_type, loss_fn_choice=loss_fn_choice)
       params = {
             'n_estimators': trial.suggest_int('n_estimators', 100, 500),
@@ -290,7 +302,7 @@ def build_xgb_rf(trial, *_, metric_name: str, y_train=None, model_type="random_f
 
 ##################################
 def build_xgb_gb(trial, *_, metric_name: str, y_train=None, model_type="gradient_boosting_xgboost", loss_fn_choice="bce"):
-      metric_cfg = get_tree_metric_config(metric_name)
+      metric_cfg = get_tree_metric_config(metric_name, loss_fn_choice)
       loss_cfg = get_loss_and_weights(trial, y_train, model_type=model_type, loss_fn_choice=loss_fn_choice)
       params = {
             'n_estimators': trial.suggest_int('n_estimators', 100, 500),
@@ -307,7 +319,7 @@ def build_xgb_gb(trial, *_, metric_name: str, y_train=None, model_type="gradient
 
 #################################
 def build_lgb_rf(trial, *_, metric_name: str, y_train=None, model_type="random_forest_lightgbm", loss_fn_choice="bce"):
-      metric_cfg = get_tree_metric_config(metric_name)
+      metric_cfg = get_tree_metric_config(metric_name, loss_fn_choice)
       loss_cfg = get_loss_and_weights(trial, y_train, model_type=model_type, loss_fn_choice=loss_fn_choice)
       params = {
             'n_estimators': trial.suggest_int('n_estimators', 100, 500),
@@ -326,7 +338,7 @@ def build_lgb_rf(trial, *_, metric_name: str, y_train=None, model_type="random_f
 
 #################################
 def build_lgb_gb(trial, *_, metric_name: str, y_train=None, model_type="gradient_boosting_lightgbm", loss_fn_choice="bce"):
-      metric_cfg = get_tree_metric_config(metric_name)
+      metric_cfg = get_tree_metric_config(metric_name, loss_fn_choice)
       loss_cfg = get_loss_and_weights(trial, y_train, model_type=model_type, loss_fn_choice=loss_fn_choice)
       params = {
             'n_estimators': trial.suggest_int('n_estimators', 100, 500),
@@ -343,7 +355,7 @@ def build_lgb_gb(trial, *_, metric_name: str, y_train=None, model_type="gradient
 
 ###################################
 def build_catboost(trial, *_, metric_name: str, y_train=None, model_type="gradient_boosting_catboost", loss_fn_choice="bce"):
-      metric_cfg = get_tree_metric_config(metric_name)
+      metric_cfg = get_tree_metric_config(metric_name, loss_fn_choice)
       loss_cfg = get_loss_and_weights(trial, y_train, model_type=model_type, loss_fn_choice=loss_fn_choice)
       params = {
             'iterations': trial.suggest_int('iterations', 100, 500),
@@ -439,7 +451,7 @@ def inner_objective(trial, model_type, X_train, y_train, n_splits=5, n_repeats=1
       
       else: # Tree-Based Models
 
-            metric_cfg = get_tree_metric_config(metric_name)
+            metric_cfg = get_tree_metric_config(metric_name, loss_fn_choice)
 
             kf = RepeatedStratifiedKFold(
                   n_splits=n_splits, 
@@ -491,6 +503,7 @@ def inner_objective(trial, model_type, X_train, y_train, n_splits=5, n_repeats=1
                               y_tr,
                               eval_set=(X_val, y_val),
                               verbose=False,
+                              callbacks=[CatBoostPruningCallback(trial, metric_cfg['catboost_callback_metric'])],
                               )
                   
                   y_val_prob = model.predict_proba(X_val)[:, 1]
