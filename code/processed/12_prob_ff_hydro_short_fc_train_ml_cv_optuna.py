@@ -498,6 +498,7 @@ def inner_objective(trial, model_type, X_train, y_train, n_splits=5, n_repeats=1
             
             return np.mean(scores)
 
+#################################
 def train_with_nested_cv_and_optuna(
       X: pd.DataFrame,
       y: pd.Series,
@@ -563,13 +564,34 @@ def train_with_nested_cv_and_optuna(
                   os.path.join(optuna_dir, f"trials_rep{rep+1}_fold{fold+1}.csv"), index=False
             )
             
-            with open(
-                  os.path.join(optuna_dir, f"best_params_rep{rep+1}_fold{fold+1}.json"), "w"
-            ) as fp:
-                  json.dump(study.best_trial.params, fp, indent=2)
-            
-            fold_logger.info(f"   · Optuna done. Best score ({metric_name.upper()})={study.best_value:.3f}")
             best_params = study.best_params
+            if model_type == 'feed_forward_keras':
+                  best_params["loss_fn_details"] = {
+                        "loss_type": loss_fn_choice,
+                        "pos_weight": best_params.get("pos_weight", 1.0),
+                        "alpha": best_params.get("alpha") if "alpha" in best_params else None,
+                        "gamma": best_params.get("gamma") if "gamma" in best_params else None
+                  }
+            else:
+                  
+                  if model_type == 'gradient_boosting_xgboost' or model_type == 'random_forest_xgboost':
+                        loss_fn_name = "xgb_objective"
+                  elif model_type == 'gradient_boosting_lightgbm' or model_type == 'random_forest_lightgbm':
+                        loss_fn_name = "lgb_objective"
+                  elif model_type == 'gradient_boosting_catboost':
+                        loss_fn_name = "catboost_loss"
+
+                  loss_cfg = get_loss_and_weights(FixedTrial(best_params), y_train_outer, model_type=model_type, loss_fn_choice=loss_fn_choice)
+                  best_params["loss_fn_details"] = {
+                        "loss_type": loss_fn_choice,
+                        "loss_fn": loss_cfg.get(loss_fn_name),
+                        "scale_pos_weight": loss_cfg["scale_pos_weight"],
+                  }
+
+            with open(os.path.join(optuna_dir, f"best_params_rep{rep+1}_fold{fold+1}.json"), "w") as fp: 
+                  json.dump(best_params, fp, indent=2)
+
+            fold_logger.info(f"   · Optuna done. Best score ({metric_name.upper()})={study.best_value:.3f}")
             fixed_trial = FixedTrial(best_params)
 
             # Final Model Training on Outer Fold 
