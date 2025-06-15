@@ -13,5 +13,7 @@
 
 # INPUTS
 model_2_train=${1}
+loss_fn_choice=${2}
+eval_metric=${3}
 
-python3 12_prob_ff_hydro_short_fc_train_ml_cv_optuna.py ${model_2_train}
+python3 12_prob_ff_hydro_short_fc_train_ml_cv_optuna.py ${model_2_train} ${loss_fn_choice} ${eval_metric}

@@ -695,22 +695,12 @@ logger.info(f"\n\nReading the training dataset")
 file_in_pdt = os.path.join(git_repo, file_in)
 X, y = load_data(file_in_pdt, feature_cols, target_col)
 
-X_pos = X[y == 1]
-y_pos = y[y == 1]
-X_neg = X[y == 0]
-y_neg = y[y == 0]
-X_neg_sampled = X_neg.sample(n=len(X_pos), random_state=42)
-y_neg_sampled = y_neg.loc[X_neg_sampled.index]
-X_balanced = pd.concat([X_pos, X_neg_sampled], axis=0).reset_index(drop=True)
-y_balanced = pd.concat([y_pos, y_neg_sampled], axis=0).reset_index(drop=True)
-X_sub, y_sub = X_balanced, y_balanced
-
-# # Reduce the training dataset for faster training, while maintaing the ratio between yes- and non-events
-# train_frac = 0.05
-# sss = StratifiedShuffleSplit(n_splits=1, train_size=train_frac, random_state=42)
-# subset_idx, _ = next(sss.split(X, y))
-# X_sub = X.iloc[subset_idx]
-# y_sub = y.iloc[subset_idx] 
+# Reduce the training dataset for faster training, while maintaing the ratio between yes- and non-events
+train_frac = 0.05
+sss = StratifiedShuffleSplit(n_splits=1, train_size=train_frac, random_state=42)
+subset_idx, _ = next(sss.split(X, y))
+X_sub = X.iloc[subset_idx]
+y_sub = y.iloc[subset_idx] 
 
 # Train the considered machine learning models
 dir_out_temp = os.path.join(git_repo, dir_out, loss_fn_choice, eval_metric, model_2_train)
