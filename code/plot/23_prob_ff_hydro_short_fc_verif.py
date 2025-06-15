@@ -42,10 +42,11 @@ from matplotlib.ticker import MaxNLocator
 # INPUT PARAMETERS
 kfold = 1
 ml_trained_list = ["gradient_boosting_xgboost", "random_forest_xgboost", "gradient_boosting_catboost", "gradient_boosting_lightgbm", "random_forest_lightgbm", "gradient_boosting_adaboost", "feed_forward_keras"]
+ml_trained_list = ["gradient_boosting_xgboost"]
 colours_ml_trained_list = ["mediumblue", "orangered", "teal", "crimson", "dodgerblue", "darkviolet", "magenta"]
-eval_metric = "auprc"
+eval_metric = "auc"
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
-dir_in = "data/processed/13_prob_ff_hydro_short_fc_retrain_best_kfold"
+dir_in = "data/processed/12_prob_ff_hydro_short_fc_train_ml_cv_optuna"
 dir_out = "data/plot/23_prob_ff_hydro_short_fc_verify"
 ##############################################################################################################
 
@@ -55,105 +56,105 @@ dir_out_temp = f'{git_repo}/{dir_out}/{eval_metric}'
 os.makedirs(dir_out_temp, exist_ok=True)
 
 
-# Plotting the aroc values
-plt.figure(figsize=(6, 5))
-score_train = []
-score_test = []
-for ind_ml, ml_trained in enumerate(ml_trained_list):
-      colours_ml_trained = colours_ml_trained_list[ind_ml]
-      dir_in_temp = f'{git_repo}/{dir_in}/{eval_metric}/{ml_trained}/fold{kfold + 1}'
-      score_train.append(np.load(f'{dir_in_temp}/aroc_train.npy'))
-      score_test.append(np.load(f'{dir_in_temp}/aroc_test.npy'))
-plt.plot(np.array(ml_trained_list), np.array(score_test), color = "grey", lw = 2, label=ml_trained)
-plt.plot(np.array(ml_trained_list), np.array(score_train), "--", color="grey", lw = 1)
-plt.ylabel("AROC", color = "#333333", fontsize = 12)
-plt.tick_params(axis='x', colors='#333333', labelsize=12, )
-plt.tick_params(axis='y', colors='#333333', labelsize=12)
-plt.xticks(rotation=45)
-plt.xlim([-1, len(ml_trained_list) + 1])
-plt.grid(axis='y', linewidth=0.5, color='gainsboro')
-plt.tight_layout()
-plt.savefig(f'{dir_out_temp}/aroc.png', dpi=1000)
-plt.close
+# # Plotting the aroc values
+# plt.figure(figsize=(6, 5))
+# score_train = []
+# score_test = []
+# for ind_ml, ml_trained in enumerate(ml_trained_list):
+#       colours_ml_trained = colours_ml_trained_list[ind_ml]
+#       dir_in_temp = f'{git_repo}/{dir_in}/{eval_metric}/{ml_trained}/fold{kfold + 1}'
+#       score_train.append(np.load(f'{dir_in_temp}/aroc_train.npy'))
+#       score_test.append(np.load(f'{dir_in_temp}/aroc_test.npy'))
+# plt.plot(np.array(ml_trained_list), np.array(score_test), color = "grey", lw = 2, label=ml_trained)
+# plt.plot(np.array(ml_trained_list), np.array(score_train), "--", color="grey", lw = 1)
+# plt.ylabel("AROC", color = "#333333", fontsize = 12)
+# plt.tick_params(axis='x', colors='#333333', labelsize=12, )
+# plt.tick_params(axis='y', colors='#333333', labelsize=12)
+# plt.xticks(rotation=45)
+# plt.xlim([-1, len(ml_trained_list) + 1])
+# plt.grid(axis='y', linewidth=0.5, color='gainsboro')
+# plt.tight_layout()
+# plt.savefig(f'{dir_out_temp}/aroc.png', dpi=1000)
+# plt.close
 
 
-# Plotting the auprc values
-plt.figure(figsize=(6, 5))
-score_train = []
-score_test = []
-for ind_ml, ml_trained in enumerate(ml_trained_list):
-      colours_ml_trained = colours_ml_trained_list[ind_ml]
-      dir_in_temp = f'{git_repo}/{dir_in}/{eval_metric}/{ml_trained}/fold{kfold + 1}'
-      score_train.append(np.load(f'{dir_in_temp}/auprc_train.npy'))
-      score_test.append(np.load(f'{dir_in_temp}/auprc_test.npy'))
-plt.plot(np.array(ml_trained_list), np.array(score_test), color = "grey", lw = 2, label=ml_trained)
-plt.plot(np.array(ml_trained_list), np.array(score_train), "--", color="grey", lw = 1)
-plt.ylabel("AUPRC", color = "#333333", fontsize = 12)
-plt.tick_params(axis='x', colors='#333333', labelsize=12, )
-plt.tick_params(axis='y', colors='#333333', labelsize=12)
-plt.xticks(rotation=45)
-plt.xlim([-1, len(ml_trained_list) + 1])
-plt.grid(axis='y', linewidth=0.5, color='gainsboro')
-plt.tight_layout()
-plt.savefig(f'{dir_out_temp}/auprc.png', dpi=1000)
-plt.close
+# # Plotting the auprc values
+# plt.figure(figsize=(6, 5))
+# score_train = []
+# score_test = []
+# for ind_ml, ml_trained in enumerate(ml_trained_list):
+#       colours_ml_trained = colours_ml_trained_list[ind_ml]
+#       dir_in_temp = f'{git_repo}/{dir_in}/{eval_metric}/{ml_trained}/fold{kfold + 1}'
+#       score_train.append(np.load(f'{dir_in_temp}/auprc_train.npy'))
+#       score_test.append(np.load(f'{dir_in_temp}/auprc_test.npy'))
+# plt.plot(np.array(ml_trained_list), np.array(score_test), color = "grey", lw = 2, label=ml_trained)
+# plt.plot(np.array(ml_trained_list), np.array(score_train), "--", color="grey", lw = 1)
+# plt.ylabel("AUPRC", color = "#333333", fontsize = 12)
+# plt.tick_params(axis='x', colors='#333333', labelsize=12, )
+# plt.tick_params(axis='y', colors='#333333', labelsize=12)
+# plt.xticks(rotation=45)
+# plt.xlim([-1, len(ml_trained_list) + 1])
+# plt.grid(axis='y', linewidth=0.5, color='gainsboro')
+# plt.tight_layout()
+# plt.savefig(f'{dir_out_temp}/auprc.png', dpi=1000)
+# plt.close
 
 
-# Plotting the fb values
-plt.figure(figsize=(6, 5))
-score_train = []
-score_test = []
-for ind_ml, ml_trained in enumerate(ml_trained_list):
-      colours_ml_trained = colours_ml_trained_list[ind_ml]
-      dir_in_temp = f'{git_repo}/{dir_in}/{eval_metric}/{ml_trained}/fold{kfold + 1}'
-      score_train.append(np.load(f'{dir_in_temp}/fb_train.npy'))
-      score_test.append(np.load(f'{dir_in_temp}/fb_test.npy'))
-plt.plot(np.array(ml_trained_list), np.array(score_test), color = "grey", lw = 2, label=ml_trained)
-plt.plot(np.array(ml_trained_list), np.array(score_train), "--", color="grey", lw = 1)
-plt.ylabel("FB", color = "#333333", fontsize = 12)
-plt.tick_params(axis='x', colors='#333333', labelsize=12, )
-plt.tick_params(axis='y', colors='#333333', labelsize=12)
-plt.xticks(rotation=45)
-plt.xlim([-1, len(ml_trained_list) + 1])
-plt.grid(axis='y', linewidth=0.5, color='gainsboro')
-plt.tight_layout()
-plt.savefig(f'{dir_out_temp}/fb.png', dpi=1000)
-plt.close
+# # Plotting the fb values
+# plt.figure(figsize=(6, 5))
+# score_train = []
+# score_test = []
+# for ind_ml, ml_trained in enumerate(ml_trained_list):
+#       colours_ml_trained = colours_ml_trained_list[ind_ml]
+#       dir_in_temp = f'{git_repo}/{dir_in}/{eval_metric}/{ml_trained}/fold{kfold + 1}'
+#       score_train.append(np.load(f'{dir_in_temp}/fb_train.npy'))
+#       score_test.append(np.load(f'{dir_in_temp}/fb_test.npy'))
+# plt.plot(np.array(ml_trained_list), np.array(score_test), color = "grey", lw = 2, label=ml_trained)
+# plt.plot(np.array(ml_trained_list), np.array(score_train), "--", color="grey", lw = 1)
+# plt.ylabel("FB", color = "#333333", fontsize = 12)
+# plt.tick_params(axis='x', colors='#333333', labelsize=12, )
+# plt.tick_params(axis='y', colors='#333333', labelsize=12)
+# plt.xticks(rotation=45)
+# plt.xlim([-1, len(ml_trained_list) + 1])
+# plt.grid(axis='y', linewidth=0.5, color='gainsboro')
+# plt.tight_layout()
+# plt.savefig(f'{dir_out_temp}/fb.png', dpi=1000)
+# plt.close
 
 
-# Plotting the best thresholds to convert the probabilistic events to yes-events
-plt.figure(figsize=(6, 5))
-plt.figure(figsize=(6, 5))
-score_train = []
-score_test = []
-for ind_ml, ml_trained in enumerate(ml_trained_list):
-      colours_ml_trained = colours_ml_trained_list[ind_ml]
-      dir_in_temp = f'{git_repo}/{dir_in}/{eval_metric}/{ml_trained}/fold{kfold + 1}'
-      score_train.append(np.load(f'{dir_in_temp}/best_thr_train.npy'))
-      score_test.append(np.load(f'{dir_in_temp}/best_thr_test.npy'))
-plt.plot(np.array(ml_trained_list), np.array(score_test), color = "grey", lw = 2, label=ml_trained)
-plt.plot(np.array(ml_trained_list), np.array(score_train), "--", color="grey", lw = 1)
-plt.ylabel("FB", color = "#333333", fontsize = 12)
-plt.tick_params(axis='x', colors='#333333', labelsize=12, )
-plt.tick_params(axis='y', colors='#333333', labelsize=12)
-plt.xticks(rotation=45)
-plt.xlim([-1, len(ml_trained_list) + 1])
-plt.grid(axis='y', linewidth=0.5, color='gainsboro')
-plt.tight_layout()
-plt.savefig(f'{dir_out_temp}/best_thr.png', dpi=1000)
-plt.close
+# # Plotting the best thresholds to convert the probabilistic events to yes-events
+# plt.figure(figsize=(6, 5))
+# plt.figure(figsize=(6, 5))
+# score_train = []
+# score_test = []
+# for ind_ml, ml_trained in enumerate(ml_trained_list):
+#       colours_ml_trained = colours_ml_trained_list[ind_ml]
+#       dir_in_temp = f'{git_repo}/{dir_in}/{eval_metric}/{ml_trained}/fold{kfold + 1}'
+#       score_train.append(np.load(f'{dir_in_temp}/best_thr_train.npy'))
+#       score_test.append(np.load(f'{dir_in_temp}/best_thr_test.npy'))
+# plt.plot(np.array(ml_trained_list), np.array(score_test), color = "grey", lw = 2, label=ml_trained)
+# plt.plot(np.array(ml_trained_list), np.array(score_train), "--", color="grey", lw = 1)
+# plt.ylabel("FB", color = "#333333", fontsize = 12)
+# plt.tick_params(axis='x', colors='#333333', labelsize=12, )
+# plt.tick_params(axis='y', colors='#333333', labelsize=12)
+# plt.xticks(rotation=45)
+# plt.xlim([-1, len(ml_trained_list) + 1])
+# plt.grid(axis='y', linewidth=0.5, color='gainsboro')
+# plt.tight_layout()
+# plt.savefig(f'{dir_out_temp}/best_thr.png', dpi=1000)
+# plt.close
 
 # Plotting the precision-recall curves
 for ind_ml, ml_trained in enumerate(ml_trained_list):
       colours_ml_trained = colours_ml_trained_list[ind_ml]
       plt.figure(figsize=(5, 5))
-      dir_in_temp = f'{git_repo}/{dir_in}/{eval_metric}/{ml_trained}/fold{kfold + 1}'
-      precision_train = np.load(f'{dir_in_temp}/precision_train.npy')
-      precision_test = np.load(f'{dir_in_temp}/precision_test.npy')
-      recall_train = np.load(f'{dir_in_temp}/recall_train.npy')
-      recall_test = np.load(f'{dir_in_temp}/recall_test.npy')
+      dir_in_temp = f'{git_repo}/{dir_in}/{eval_metric}/{ml_trained}'
+      precision_train = np.load(f'{dir_in_temp}/precision_rep1_fold1.npy')
+      #precision_test = np.load(f'{dir_in_temp}/precision_test.npy')
+      recall_train = np.load(f'{dir_in_temp}/recall_rep1_fold1.npy')
+      #recall_test = np.load(f'{dir_in_temp}/recall_test.npy')
       plt.plot(recall_train, precision_train, "--", color=colours_ml_trained, lw = 0.5)
-      plt.plot(recall_test, precision_test, color=colours_ml_trained, lw = 1)
+      #plt.plot(recall_test, precision_test, color=colours_ml_trained, lw = 1)
       plt.plot([0,1], [1,0], color="#333333", lw = 1)
       plt.title("Precision-recall curve", fontweight='bold', color="#333333", fontsize=14)
       plt.xlabel("Recall (also Hit Rate)", color = "#333333", fontsize = 12)
@@ -164,46 +165,48 @@ for ind_ml, ml_trained in enumerate(ml_trained_list):
       plt.ylim([-0.05, 1.05])
       plt.grid(linewidth=0.5, color='gainsboro')
       plt.tight_layout()
+      plt.show()
+      exit()
       plt.savefig(f'{dir_out_temp}/precision_recall_curve_{ml_trained}.png', dpi=1000)
       plt.close
 
 
-# Plotting the roc curves
-for ind_ml, ml_trained in enumerate(ml_trained_list):
-      colours_ml_trained = colours_ml_trained_list[ind_ml]
-      plt.figure(figsize=(5, 5))
-      dir_in_temp = f'{git_repo}/{dir_in}/{eval_metric}/{ml_trained}/fold{kfold + 1}'
-      hr_train = np.load(f'{dir_in_temp}/hr_train.npy')
-      hr_test = np.load(f'{dir_in_temp}/hr_test.npy')
-      far_train = np.load(f'{dir_in_temp}/far_train.npy')
-      far_test = np.load(f'{dir_in_temp}/far_test.npy')
-      plt.plot(far_train, hr_train, "--", color=colours_ml_trained, lw = 1)
-      plt.plot(far_test, hr_test, color=colours_ml_trained, lw = 2)
-      plt.plot([0,1], [0,1], "--", color="#333333", lw = 1)
-      plt.title("ROC curve", fontweight='bold', color="#333333", fontsize=14)
-      plt.xlabel("False alarm rate", color = "#333333", fontsize = 12)
-      plt.ylabel("Hit rate", color = "#333333", fontsize = 12)
-      plt.tick_params(axis='x', colors='#333333', labelsize=12)
-      plt.tick_params(axis='y', colors='#333333', labelsize=12)
-      plt.xlim([-0.05, 1.05])
-      plt.ylim([-0.05, 1.05])
-      plt.grid(linewidth=0.5, color='gainsboro')
-      plt.tight_layout()
-      plt.savefig(f'{dir_out_temp}/roc_curve_{ml_trained}.png', dpi=1000)
-      plt.close
+# # Plotting the roc curves
+# for ind_ml, ml_trained in enumerate(ml_trained_list):
+#       colours_ml_trained = colours_ml_trained_list[ind_ml]
+#       plt.figure(figsize=(5, 5))
+#       dir_in_temp = f'{git_repo}/{dir_in}/{eval_metric}/{ml_trained}/fold{kfold + 1}'
+#       hr_train = np.load(f'{dir_in_temp}/hr_train.npy')
+#       hr_test = np.load(f'{dir_in_temp}/hr_test.npy')
+#       far_train = np.load(f'{dir_in_temp}/far_train.npy')
+#       far_test = np.load(f'{dir_in_temp}/far_test.npy')
+#       plt.plot(far_train, hr_train, "--", color=colours_ml_trained, lw = 1)
+#       plt.plot(far_test, hr_test, color=colours_ml_trained, lw = 2)
+#       plt.plot([0,1], [0,1], "--", color="#333333", lw = 1)
+#       plt.title("ROC curve", fontweight='bold', color="#333333", fontsize=14)
+#       plt.xlabel("False alarm rate", color = "#333333", fontsize = 12)
+#       plt.ylabel("Hit rate", color = "#333333", fontsize = 12)
+#       plt.tick_params(axis='x', colors='#333333', labelsize=12)
+#       plt.tick_params(axis='y', colors='#333333', labelsize=12)
+#       plt.xlim([-0.05, 1.05])
+#       plt.ylim([-0.05, 1.05])
+#       plt.grid(linewidth=0.5, color='gainsboro')
+#       plt.tight_layout()
+#       plt.savefig(f'{dir_out_temp}/roc_curve_{ml_trained}.png', dpi=1000)
+#       plt.close
 
 
 # Plotting the reliability diagrams
 for ind_ml, ml_trained in enumerate(ml_trained_list):
       colours_ml_trained = colours_ml_trained_list[ind_ml]
       plt.figure(figsize=(5, 5))
-      dir_in_temp = f'{git_repo}/{dir_in}/{eval_metric}/{ml_trained}/fold{kfold + 1}'
-      obs_freq_train = np.load(f'{dir_in_temp}/obs_freq_train.npy')
-      obs_freq_test = np.load(f'{dir_in_temp}/obs_freq_test.npy')
-      prob_pred_train = np.load(f'{dir_in_temp}/prob_pred_train.npy')
-      prob_pred_test = np.load(f'{dir_in_temp}/prob_pred_test.npy')
+      dir_in_temp = f'{git_repo}/{dir_in}/{eval_metric}/{ml_trained}'
+      obs_freq_train = np.load(f'{dir_in_temp}/obs_freq_rep1_fold2.npy')
+      #obs_freq_test = np.load(f'{dir_in_temp}/obs_freq_test.npy')
+      prob_pred_train = np.load(f'{dir_in_temp}/prob_pred_rep1_fold2.npy')
+      #prob_pred_test = np.load(f'{dir_in_temp}/prob_pred_test.npy')
       plt.plot(prob_pred_train, obs_freq_train, "--", color=colours_ml_trained, lw = 1)
-      plt.plot(prob_pred_test, obs_freq_test, color=colours_ml_trained, lw = 2)
+      #plt.plot(prob_pred_test, obs_freq_test, color=colours_ml_trained, lw = 2)
       plt.plot([0,1], [0,1], "--", color="#333333", lw = 1)
       plt.title("Reliability diagram", fontweight='bold', color="#333333", fontsize=14)
       plt.xlabel("Forecast probability", color = "#333333", fontsize = 12)
@@ -214,5 +217,8 @@ for ind_ml, ml_trained in enumerate(ml_trained_list):
       plt.ylim([-0.05, 1.05])
       plt.grid(linewidth=0.5, color='gainsboro')
       plt.tight_layout()
+      plt.show()
+      exit()
+
       plt.savefig(f'{dir_out_temp}/reliability_diagram_{ml_trained}.png', dpi=1000)
       plt.close
