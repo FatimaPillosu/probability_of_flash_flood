@@ -4,7 +4,7 @@
 [ECMWF-INFO -sbatch] -  +++ https://support.ecmwf.int                     +++
 [ECMWF-INFO -sbatch] -  /usr/local/bin/ecsbatch: size: 52065, mtime: Wed Feb 12 19:10:58 2025
 [ECMWF-INFO -sbatch] - -------------------------------------------------------------------------------------
-[ECMWF-INFO -sbatch] - Time at submit: Sun Jun 15 19:15:10 2025 (1750014910.231577) on ac6-102.bullx:/etc/ecmwf/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood/code/processed
+[ECMWF-INFO -sbatch] - Time at submit: Sun Jun 15 22:37:46 2025 (1750027066.6062207) on ac6-102.bullx:/etc/ecmwf/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood/code/processed
 [ECMWF-INFO -sbatch] - --- SLURM VARIABLES ---
 [ECMWF-INFO -sbatch] - EC_CLUSTER=ac
 [ECMWF-INFO -sbatch] - SLURM_EXPORT_ENV=ALL
@@ -24,7 +24,7 @@
 [ECMWF-INFO -sbatch] - #SBATCH --mail-user=fatima.pillosu@ecmwf.int
 [ECMWF-INFO -sbatch] - -----------------------
 [ECMWF-INFO -sbatch] - --- POST-PROCESSED OPTIONS ---
-[ECMWF-INFO -sbatch] - ARG --positional=['12a_SubmitterATOS_prof_ff_hydro_short_fc_train_ml_cv_optuna.sh', 'gradient_boosting_catboost', 'weighted_bce', 'auc']
+[ECMWF-INFO -sbatch] - ARG --positional=['12a_SubmitterATOS_prof_ff_hydro_short_fc_train_ml_cv_optuna.sh', 'random_forest_lightgbm', 'weighted_bce', 'auc']
 [ECMWF-INFO -sbatch] - ARG --cpus_per_task=64
 [ECMWF-INFO -sbatch] - ARG --error=log_atos/cv_optuna-%J.out
 [ECMWF-INFO -sbatch] - ARG --job_name=cv_optuna
@@ -37,7 +37,7 @@
 [ECMWF-INFO -sbatch] - ARG --gpus=4
 [ECMWF-INFO -sbatch] - ------------------------------
 [ECMWF-INFO -sbatch] - jobtag: mofp-cv_optuna-1x64-/etc/ecmwf/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood/code/processed/log_atos/cv_optuna-_.out
-[ECMWF-INFO -sbatch] - ['/usr/bin/sbatch', '--cpus-per-task=64', '--error=log_atos/cv_optuna-%J.out', '--job-name=cv_optuna', '--mail-type=FAIL', '--mail-user=fatima.pillosu@ecmwf.int', '--output=log_atos/cv_optuna-%J.out', '--qos=ng', '--time=2-00:00:00', '--mem=128G', '--gpus=4', '--licenses=h2resw01', '--export=EC_user_time_limit=2-00:00:00', '/etc/ecmwf/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood/code/processed/12a_SubmitterATOS_prof_ff_hydro_short_fc_train_ml_cv_optuna.sh', 'gradient_boosting_catboost', 'weighted_bce', 'auc']
+[ECMWF-INFO -sbatch] - ['/usr/bin/sbatch', '--cpus-per-task=64', '--error=log_atos/cv_optuna-%J.out', '--job-name=cv_optuna', '--mail-type=FAIL', '--mail-user=fatima.pillosu@ecmwf.int', '--output=log_atos/cv_optuna-%J.out', '--qos=ng', '--time=2-00:00:00', '--mem=128G', '--gpus=4', '--licenses=h2resw01', '--export=EC_user_time_limit=2-00:00:00', '/etc/ecmwf/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood/code/processed/12a_SubmitterATOS_prof_ff_hydro_short_fc_train_ml_cv_optuna.sh', 'random_forest_lightgbm', 'weighted_bce', 'auc']
 [ECMWF-INFO -sbatch] - sbatch executed on ac
 [ECMWF-INFO -sbatch] - Job queued on ac using method local
-[ECMWF-INFO -sbatch] - Submitted batch job 32956173
+[ECMWF-INFO -sbatch] - Submitted batch job 32993299

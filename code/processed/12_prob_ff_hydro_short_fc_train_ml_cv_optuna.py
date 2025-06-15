@@ -709,9 +709,9 @@ train_with_nested_cv_and_optuna(
       y_sub,
       model_type=model_2_train,
       dir_out=dir_out_temp,
-      n_trials = 2,
-      n_outer = 2,
-      n_inner = 2,
+      n_trials = 20,
+      n_outer = 5,
+      n_inner = 3,
       n_repeats = 1,
       metric_name=eval_metric,
       loss_fn_choice=loss_fn_choice
