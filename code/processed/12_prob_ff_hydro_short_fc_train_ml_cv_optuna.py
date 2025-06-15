@@ -427,7 +427,7 @@ def inner_objective(trial, model_type, X_train, y_train, n_splits=5, n_repeats=1
 
                   early_stop = keras.callbacks.EarlyStopping(
                         monitor=f'val_{metric_name}',
-                        patience=2,
+                        patience=3,
                         restore_best_weights=True
                         )
                   
@@ -578,6 +578,8 @@ def train_with_nested_cv_and_optuna(
             )
             
             best_params = study.best_params
+            best_params["optuna_best_score"] = study.best_value 
+            
             if model_type == 'feed_forward_keras':
                   best_params["loss_fn_details"] = {
                         "loss_type": loss_fn_choice,
@@ -585,11 +587,12 @@ def train_with_nested_cv_and_optuna(
                         "alpha": best_params.get("alpha") if "alpha" in best_params else None,
                         "gamma": best_params.get("gamma") if "gamma" in best_params else None
                   }
+            
             else:
                   
-                  if model_type == 'gradient_boosting_xgboost' or model_type == 'random_forest_xgboost':
+                  if model_type in {'gradient_boosting_xgboost', 'random_forest_xgboost'}:
                         loss_fn_name = "xgb_objective"
-                  elif model_type == 'gradient_boosting_lightgbm' or model_type == 'random_forest_lightgbm':
+                  elif model_type in {'gradient_boosting_lightgbm', 'random_forest_lightgbm'}:
                         loss_fn_name = "lgb_objective"
                   elif model_type == 'gradient_boosting_catboost':
                         loss_fn_name = "catboost_loss"
@@ -609,22 +612,12 @@ def train_with_nested_cv_and_optuna(
 
             # Final Model Training on Outer Fold 
             if model_type == 'feed_forward_keras':
-                  best_params["loss_fn_details"] = {
-                        "loss_fn": loss_fn_choice,
-                        "pos_weight": best_params.get("pos_weight", 1.0),
-                        "alpha": best_params.get("alpha") if "alpha" in best_params else None,
-                        "gamma": best_params.get("gamma") if "gamma" in best_params else None
-                        }
                   final_model = build_model(model_type, fixed_trial, input_dim=X_train_outer.shape[1], y_train=y_train_outer, metric_name=metric_name, loss_fn_choice=loss_fn_choice)
                   scaler = StandardScaler().fit(X_train_outer)
                   X_train_scaled = scaler.transform(X_train_outer)
                   X_test_scaled = scaler.transform(X_test_outer)
             else:
                   loss_cfg = get_loss_and_weights(FixedTrial(best_params), y_train_outer, model_type=model_type, loss_fn_choice=loss_fn_choice)
-                  best_params["loss_fn_details"] = {
-                        "loss_fn": loss_fn_choice,
-                        "scale_pos_weight": loss_cfg["scale_pos_weight"],
-                        }
                   final_model = build_model(model_type, fixed_trial, y_train=y_train_outer, loss_fn_choice=loss_fn_choice)
                   X_train_scaled = X_train_outer
                   X_test_scaled = X_test_outer
@@ -635,7 +628,7 @@ def train_with_nested_cv_and_optuna(
             if model_type == 'feed_forward_keras':
                   early_stop = keras.callbacks.EarlyStopping(
                         monitor=monitor_name,
-                        patience=2,
+                        patience=3,
                         restore_best_weights=True
                         )
                   final_model.fit(
