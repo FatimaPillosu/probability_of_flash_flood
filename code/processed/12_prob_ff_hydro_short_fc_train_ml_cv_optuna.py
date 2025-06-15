@@ -148,19 +148,25 @@ def evaluate_metric(y_true, y_pred_prob, metric_name: str):
 def get_tree_metric_config(metric_name: str):
       if metric_name == 'auc':
             return {
+                  'xgb_eval_metric': 'auc',
                   'xgb_callback_metric': 'validation_0-auc',
                   'lgb_eval_metric': 'auc',
-                  'catboost_eval_metric': 'AUC'
+                  'lgb_callback_metric': 'auc',
+                  'catboost_eval_metric': 'AUC',
+                  'catboost_callback_metric': 'AUC'
             }
       elif metric_name == 'auprc':
             return {
+                  'xgb_eval_metric': 'aucpr',
                   'xgb_callback_metric': 'validation_0-aucpr',
                   'lgb_eval_metric': 'average_precision',
-                  'catboost_eval_metric': 'PRAUC:type=Classic'
+                  'lgb_callback_metric': 'average_precision',
+                  'catboost_eval_metric': 'PRAUC:type=Classic',
+                  'catboost_callback_metric': 'PRAUC:type=Classic'
             }
       else:
             raise ValueError(f"Unsupported metric: {metric_name}")
-
+      
 
 #################
 # MODEL REGISTRY #
@@ -199,20 +205,22 @@ def build_feed_forward_keras(trial, input_dim=None, y_train=None, metric_name: s
       return build_keras_model(trial, input_dim=input_dim, y_train=y_train, metric_name=metric_name)
 
 #################################
-def build_xgb_rf(trial, *_):
+def build_xgb_rf(trial, *_, metric_name: str):
+      metric_cfg = get_tree_metric_config(metric_name)
       params = {
             'n_estimators': trial.suggest_int('n_estimators', 100, 500),
             'max_depth': trial.suggest_int('max_depth', 3, 10),
             'colsample_bynode': trial.suggest_float('colsample_bynode', 0.6, 1.0),
             'subsample': trial.suggest_float('subsample', 0.6, 1.0),
             'objective': 'binary:logistic',
-            'eval_metric': 'auc',
+            'eval_metric': metric_cfg['xgb_eval_metric'],
             'random_state': 42,
       }
       return XGBRFClassifier(**params)
 
 ##################################
-def build_xgb_gb(trial, *_):
+def build_xgb_gb(trial, *_, metric_name: str):
+      metric_cfg = get_tree_metric_config(metric_name)
       params = {
             'n_estimators': trial.suggest_int('n_estimators', 100, 500),
             'max_depth': trial.suggest_int('max_depth', 3, 10),
@@ -220,13 +228,14 @@ def build_xgb_gb(trial, *_):
             'subsample': trial.suggest_float('subsample', 0.6, 1.0),
             'colsample_bytree': trial.suggest_float('colsample_bytree', 0.6, 1.0),
             'objective': 'binary:logistic',
-            'eval_metric': 'auc',
+            'eval_metric': metric_cfg['xgb_eval_metric'],
             'random_state': 42
       }
       return XGBClassifier(**params)
 
 #################################
-def build_lgb_rf(trial, *_):
+def build_lgb_rf(trial, *_, metric_name: str):
+      metric_cfg = get_tree_metric_config(metric_name)
       params = {
             'n_estimators': trial.suggest_int('n_estimators', 100, 500),
             'max_depth': trial.suggest_int('max_depth', 3, 10),
@@ -236,13 +245,14 @@ def build_lgb_rf(trial, *_):
             'feature_fraction': trial.suggest_float('feature_fraction', 0.6, 1.0),
             'boosting_type': 'rf',
             'objective': 'binary',
-            'eval_metric': 'auc',
+            'eval_metric': metric_cfg['lgb_eval_metric'],
             'random_state': 42
       }
       return LGBMClassifier(**params)
 
 #################################
-def build_lgb_gb(trial, *_):
+def build_lgb_gb(trial, *_, metric_name: str):
+      metric_cfg = get_tree_metric_config(metric_name)
       params = {
             'n_estimators': trial.suggest_int('n_estimators', 100, 500),
             'max_depth': trial.suggest_int('max_depth', 3, 10),
@@ -250,20 +260,21 @@ def build_lgb_gb(trial, *_):
             'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3),
             'boosting_type': 'gbdt',
             'objective': 'binary',
-            'eval_metric': 'auc',
+            'eval_metric': metric_cfg['lgb_eval_metric'],
             'random_state': 42
       }
       return LGBMClassifier(**params)
 
 ###################################
-def build_catboost(trial, *_):
+def build_catboost(trial, *_, metric_name: str):
+      metric_cfg = get_tree_metric_config(metric_name)
       params = {
             'iterations': trial.suggest_int('iterations', 100, 500),
             'depth': trial.suggest_int('depth', 3, 10),
             'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3),
             'l2_leaf_reg': trial.suggest_float('l2_leaf_reg', 1, 5),
             'loss_function': 'Logloss',
-            'eval_metric': 'AUC',
+            'eval_metric': metric_cfg['catboost_eval_metric'],
             'verbose': 0,
             'random_state': 42
       }
@@ -404,7 +415,7 @@ def inner_objective(trial, model_type, X_train, y_train, n_splits=5, n_repeats=1
                               y_tr,
                               eval_set=[(X_val, y_val)],
                               eval_metric=metric_cfg['lgb_eval_metric'],
-                              callbacks=[LightGBMPruningCallback(trial, metric_cfg['lgb_eval_metric'])],
+                              callbacks=[LightGBMPruningCallback(trial, metric_cfg['lgb_callback_metric'])],
                               )
 
                   elif model_type == "gradient_boosting_catboost":
@@ -416,7 +427,7 @@ def inner_objective(trial, model_type, X_train, y_train, n_splits=5, n_repeats=1
                               y_tr,
                               eval_set=(X_val, y_val),
                               verbose=False,
-                              callbacks=[CatBoostPruningCallback(trial, metric_cfg['catboost_eval_metric'])],
+                              callbacks=[CatBoostPruningCallback(trial, metric_cfg['catboost_callback_metric'])],
                               )
                   
                   y_val_prob = model.predict_proba(X_val)[:, 1]
@@ -523,7 +534,7 @@ def train_with_nested_cv_and_optuna(
 
             if model_type == 'feed_forward_keras':
                   early_stop = keras.callbacks.EarlyStopping(
-                        monitor='val_loss',
+                        monitor=f'val_{metric_name}',
                         patience=2,
                         restore_best_weights=True
                         )
@@ -610,7 +621,7 @@ results = train_with_nested_cv_and_optuna(
       y_sub,
       model_type=model_2_train,
       dir_out=dir_out_temp,
-      n_trials = 20,
+      n_trials = 2,
       n_outer = 5,
       n_inner = 3,
       n_repeats = 1,
