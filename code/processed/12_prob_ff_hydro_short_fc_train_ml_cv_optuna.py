@@ -25,15 +25,16 @@ import xgboost as xgb
 from packaging import version
 from tensorflow import keras
 import joblib
+import gc
 
 
 ##################################################################################################
 # CODE DESCRIPTION
 # 12_prob_ff_hydro_short_fc_train_ml_cv_optuna.py trains the considered machine learning models (i.e., decision trees  
 # and neural networks) to forecast the probabilities of flash flood. The training applies a nested stratified k-fold 
-# cross-validation technique to train with imbalanceee datasets, and optuna for hyperparameter tuning.
+# cross-validation technique to train with imbalanced datasets, and optuna for hyperparameter tuning.
 
-# Usage: python3 12_prob_ff_hydro_short_fc_train_ml_cv_optuna.py
+# Usage: python3 12_prob_ff_hydro_short_fc_train_ml_cv_optuna.py random_forest_xgboost bce auc
 
 # Runtime: ~ 3 days per model.
 
@@ -48,6 +49,9 @@ import joblib
 #                                                                 - gradient_boosting_lightgbm
 #                                                                 - gradient_boosting_catboost
 #                                                                 - feed_forward_keras
+# loss_fn_choice (string): type of loss function considered. Valid values are:
+#                                               - bce: no weights applied to loss function.
+#                                               - weighted_bce: wheight applied to loss function.
 # eval_metric (string): evaluation metric for the data-driven models. Valid values are:
 #                                         - auc: area under the roc curve.
 #                                         - auprc: area under the precion-recall curve.
@@ -60,13 +64,24 @@ import joblib
 ##################################################################################################
 # INPUT PARAMETERS
 model_2_train = sys.argv[1]
-eval_metric = sys.argv[2]
+loss_fn_choice = sys.argv[2]
+eval_metric = sys.argv[3]
 feature_cols = ["tp_prob_1", "tp_prob_max_1_adj_gb", "tp_prob_50", "tp_prob_max_50_adj_gb", "swvl", "sdfor", "lai"]
 target_col = "ff"
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
 file_in = "data/processed/11_prob_ff_hydro_short_fc_combine_pdt/pdt_2001_2020.csv"
 dir_out = "data/processed/12_prob_ff_hydro_short_fc_train_ml_cv_optuna"
 ##################################################################################################
+
+
+#########################
+# CHECK INPUT PARAMETERS #
+#########################
+
+valid_models = {"random_forest_xgboost", "random_forest_lightgbm", "gradient_boosting_xgboost", "gradient_boosting_lightgbm", "gradient_boosting_catboost", "feed_forward_keras"}
+assert model_2_train in valid_models, f"Invalid model: {model_2_train}"
+assert eval_metric in {'auc', 'auprc'}, f"Invalid eval_metric: {eval_metric}"
+assert loss_fn_choice in {'bce', 'weighted_bce'}, f"Invalid loss function: {loss_fn_choice}"
 
 
 #################################
@@ -160,7 +175,6 @@ def get_tree_metric_config(metric_name: str):
                   'lgb_eval_metric': 'auc',
                   'lgb_callback_metric': 'auc',
                   'catboost_eval_metric': 'AUC',
-                  'catboost_callback_metric': 'AUC'
             }
       elif metric_name == 'auprc':
             return {
@@ -169,7 +183,6 @@ def get_tree_metric_config(metric_name: str):
                   'lgb_eval_metric': 'average_precision',
                   'lgb_callback_metric': 'average_precision',
                   'catboost_eval_metric': 'PRAUC:type=Classic',
-                  'catboost_callback_metric': 'PRAUC:type=Classic'
             }
       else:
             raise ValueError(f"Unsupported metric: {metric_name}")
@@ -179,7 +192,7 @@ def get_tree_metric_config(metric_name: str):
 # MODEL REGISTRY #
 #################
 
-def get_loss_and_weights(trial, y_train, model_type: str):
+def get_loss_and_weights(trial, y_train, model_type: str, loss_fn_choice: str = "bce"):
       """
       Determine the loss function setup and class weighting for neural networks and decision tree models.
       
@@ -197,7 +210,7 @@ def get_loss_and_weights(trial, y_train, model_type: str):
                   lgb_objective: str
                   catboost_loss: str
       """
-      loss_choice = trial.suggest_categorical("loss_fn", ["bce", "weighted_bce"])
+      loss_choice = loss_fn_choice
 
       # pos_weight
       pos_weight = 1.0 # Default pos_weight (for unweighted)
@@ -237,8 +250,8 @@ def get_loss_and_weights(trial, y_train, model_type: str):
             "catboost_loss": catboost_loss
       }
 
-def build_keras_model(trial, input_dim: int, y_train, metric_name: str):
-      loss_cfg = get_loss_and_weights(trial, y_train, model_type="feed_forward_keras")
+def build_keras_model(trial, input_dim: int, y_train, metric_name: str, loss_fn_choice="bce"):
+      loss_cfg = get_loss_and_weights(trial, y_train, model_type="feed_forward_keras", loss_fn_choice=loss_fn_choice)
       loss_fn = loss_cfg["keras_loss"]
       class_weights = loss_cfg["class_weights"]
       n_layers = trial.suggest_int("n_layers", 1, 3)
@@ -256,13 +269,13 @@ def build_keras_model(trial, input_dim: int, y_train, metric_name: str):
       return model, class_weights
 
 ############################################
-def build_feed_forward_keras(trial, input_dim=None, y_train=None, metric_name: str = 'auc'):
-      return build_keras_model(trial, input_dim=input_dim, y_train=y_train, metric_name=metric_name)
+def build_feed_forward_keras(trial, input_dim=None, y_train=None, metric_name: str = 'auc', loss_fn_choice="bce"):
+      return build_keras_model(trial, input_dim=input_dim, y_train=y_train, metric_name=metric_name, loss_fn_choice=loss_fn_choice)
 
 #################################
-def build_xgb_rf(trial, *_, metric_name: str, y_train=None, model_type="random_forest_xgboost"):
+def build_xgb_rf(trial, *_, metric_name: str, y_train=None, model_type="random_forest_xgboost", loss_fn_choice="bce"):
       metric_cfg = get_tree_metric_config(metric_name)
-      loss_cfg = get_loss_and_weights(trial, y_train, model_type=model_type)
+      loss_cfg = get_loss_and_weights(trial, y_train, model_type=model_type, loss_fn_choice=loss_fn_choice)
       params = {
             'n_estimators': trial.suggest_int('n_estimators', 100, 500),
             'max_depth': trial.suggest_int('max_depth', 3, 10),
@@ -276,9 +289,9 @@ def build_xgb_rf(trial, *_, metric_name: str, y_train=None, model_type="random_f
       return XGBRFClassifier(**params)
 
 ##################################
-def build_xgb_gb(trial, *_, metric_name: str, y_train=None, model_type="gradient_boosting_xgboost"):
+def build_xgb_gb(trial, *_, metric_name: str, y_train=None, model_type="gradient_boosting_xgboost", loss_fn_choice="bce"):
       metric_cfg = get_tree_metric_config(metric_name)
-      loss_cfg = get_loss_and_weights(trial, y_train, model_type=model_type)
+      loss_cfg = get_loss_and_weights(trial, y_train, model_type=model_type, loss_fn_choice=loss_fn_choice)
       params = {
             'n_estimators': trial.suggest_int('n_estimators', 100, 500),
             'max_depth': trial.suggest_int('max_depth', 3, 10),
@@ -293,9 +306,9 @@ def build_xgb_gb(trial, *_, metric_name: str, y_train=None, model_type="gradient
       return XGBClassifier(**params)
 
 #################################
-def build_lgb_rf(trial, *_, metric_name: str, y_train=None, model_type="random_forest_lightgbm"):
+def build_lgb_rf(trial, *_, metric_name: str, y_train=None, model_type="random_forest_lightgbm", loss_fn_choice="bce"):
       metric_cfg = get_tree_metric_config(metric_name)
-      loss_cfg = get_loss_and_weights(trial, y_train, model_type=model_type)
+      loss_cfg = get_loss_and_weights(trial, y_train, model_type=model_type, loss_fn_choice=loss_fn_choice)
       params = {
             'n_estimators': trial.suggest_int('n_estimators', 100, 500),
             'max_depth': trial.suggest_int('max_depth', 3, 10),
@@ -312,9 +325,9 @@ def build_lgb_rf(trial, *_, metric_name: str, y_train=None, model_type="random_f
       return LGBMClassifier(**params)
 
 #################################
-def build_lgb_gb(trial, *_, metric_name: str, y_train=None, model_type="gradient_boosting_lightgbm"):
+def build_lgb_gb(trial, *_, metric_name: str, y_train=None, model_type="gradient_boosting_lightgbm", loss_fn_choice="bce"):
       metric_cfg = get_tree_metric_config(metric_name)
-      loss_cfg = get_loss_and_weights(trial, y_train, model_type=model_type)
+      loss_cfg = get_loss_and_weights(trial, y_train, model_type=model_type, loss_fn_choice=loss_fn_choice)
       params = {
             'n_estimators': trial.suggest_int('n_estimators', 100, 500),
             'max_depth': trial.suggest_int('max_depth', 3, 10),
@@ -329,20 +342,24 @@ def build_lgb_gb(trial, *_, metric_name: str, y_train=None, model_type="gradient
       return LGBMClassifier(**params)
 
 ###################################
-def build_catboost(trial, *_, metric_name: str, y_train=None, model_type="gradient_boosting_catboost"):
+def build_catboost(trial, *_, metric_name: str, y_train=None, model_type="gradient_boosting_catboost", loss_fn_choice="bce"):
       metric_cfg = get_tree_metric_config(metric_name)
-      loss_cfg = get_loss_and_weights(trial, y_train, model_type=model_type)
+      loss_cfg = get_loss_and_weights(trial, y_train, model_type=model_type, loss_fn_choice=loss_fn_choice)
       params = {
             'iterations': trial.suggest_int('iterations', 100, 500),
             'depth': trial.suggest_int('depth', 3, 10),
             'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3),
             'l2_leaf_reg': trial.suggest_float('l2_leaf_reg', 1, 5),
             'loss_function': loss_cfg['catboost_loss'],
-            'scale_pos_weight': loss_cfg.get("scale_pos_weight", 1.0),
             'eval_metric': metric_cfg['catboost_eval_metric'],
+            'custom_metric': ['PRAUC'],
             'verbose': 0,
             'random_state': 42
       }
+
+      if loss_cfg['catboost_loss'] == 'Logloss':
+            params['scale_pos_weight'] = loss_cfg.get("scale_pos_weight", 1.0)
+      
       return CatBoostClassifier(**params)
 
 
@@ -357,14 +374,14 @@ MODEL_REGISTRY = {
       }
 
 ###################################################
-def build_model(model_type: str, trial, input_dim: int = None, y_train=None, metric_name: str = 'auc'):
+def build_model(model_type: str, trial, input_dim: int = None, y_train=None, metric_name: str = 'auc', loss_fn_choice="bce"):
       if model_type not in MODEL_REGISTRY:
             raise ValueError(f"Unknown model_type: {model_type}")
       build_func = MODEL_REGISTRY[model_type]
       if model_type == 'feed_forward_keras':
-            return build_func(trial, input_dim=input_dim, y_train=y_train, metric_name=metric_name)
+            return build_func(trial, input_dim=input_dim, y_train=y_train, metric_name=metric_name, loss_fn_choice=loss_fn_choice)
       else:
-            return build_func(trial, metric_name=metric_name)
+            return build_func(trial, y_train=y_train, metric_name=metric_name, loss_fn_choice=loss_fn_choice)
 
 
 
@@ -374,7 +391,7 @@ def build_model(model_type: str, trial, input_dim: int = None, y_train=None, met
 
 def inner_objective(trial, model_type, X_train, y_train, n_splits=5, n_repeats=10, metric_name='auc'):
 
-      logger.info(f"   · Trial {trial.number} started") 
+      logger.info(f"   · Trial {trial.number} started with loss function: {loss_fn_choice}") 
 
       if model_type == 'feed_forward_keras': # Neural Network Models
             
@@ -394,7 +411,7 @@ def inner_objective(trial, model_type, X_train, y_train, n_splits=5, n_repeats=1
                   X_trf = scaler.transform(X_trf)
                   X_valf = scaler.transform(X_valf)
 
-                  model, class_weights = build_model(model_type, trial, input_dim=X_trf.shape[1], y_train=y_trf, metric_name=metric_name)
+                  model, class_weights = build_model(model_type, trial, input_dim=X_trf.shape[1], y_train=y_trf, metric_name=metric_name, loss_fn_choice=loss_fn_choice)
 
                   early_stop = keras.callbacks.EarlyStopping(
                         monitor=f'val_{metric_name}',
@@ -422,9 +439,6 @@ def inner_objective(trial, model_type, X_train, y_train, n_splits=5, n_repeats=1
       
       else: # Tree-Based Models
 
-            loss_cfg = get_loss_and_weights(trial, y_train, model_type=model_type)
-            pos_weight = loss_cfg.get("scale_pos_weight", 1.0)
-
             metric_cfg = get_tree_metric_config(metric_name)
 
             kf = RepeatedStratifiedKFold(
@@ -440,7 +454,7 @@ def inner_objective(trial, model_type, X_train, y_train, n_splits=5, n_repeats=1
                   X_tr, X_val = X_train.iloc[train_idx], X_train.iloc[val_idx]
                   y_tr, y_val = y_train.iloc[train_idx], y_train.iloc[val_idx]
 
-                  model = build_model(model_type, trial, y_tr)
+                  model = build_model(model_type, trial, y_tr, loss_fn_choice=loss_fn_choice)
 
                   if model_type in {'gradient_boosting_xgboost', 'random_forest_xgboost'}:
                   
@@ -472,14 +486,11 @@ def inner_objective(trial, model_type, X_train, y_train, n_splits=5, n_repeats=1
 
                   elif model_type == "gradient_boosting_catboost":
                         
-                        model.set_params(scale_pos_weight=pos_weight)
-
                         model.fit(
                               X_tr,
                               y_tr,
                               eval_set=(X_val, y_val),
                               verbose=False,
-                              callbacks=[CatBoostPruningCallback(trial, metric_cfg['catboost_callback_metric'])],
                               )
                   
                   y_val_prob = model.predict_proba(X_val)[:, 1]
@@ -496,7 +507,8 @@ def train_with_nested_cv_and_optuna(
       n_outer: int = 10,
       n_inner: int = 5,
       n_repeats: int = 5,
-      metric_name: str = 'auc'
+      metric_name: str = 'auc',
+      loss_fn_choice: str = "bce"
       ):
       
       outer_cv = RepeatedStratifiedKFold(
@@ -525,7 +537,7 @@ def train_with_nested_cv_and_optuna(
             X_train_outer, X_test_outer = X.iloc[train_index], X.iloc[test_index]
             y_train_outer, y_test_outer = y.iloc[train_index], y.iloc[test_index]
 
-            fold_logger.info(f"Launching Optuna study considering evaluation metric - {metric_name}")
+            fold_logger.info(f"Launching Optuna study with metric={metric_name}, loss={loss_fn_choice}")
 
             study = optuna.create_study(
                   direction='maximize', 
@@ -550,6 +562,7 @@ def train_with_nested_cv_and_optuna(
             df_trials.to_csv(
                   os.path.join(optuna_dir, f"trials_rep{rep+1}_fold{fold+1}.csv"), index=False
             )
+            
             with open(
                   os.path.join(optuna_dir, f"best_params_rep{rep+1}_fold{fold+1}.json"), "w"
             ) as fp:
@@ -560,40 +573,33 @@ def train_with_nested_cv_and_optuna(
             fixed_trial = FixedTrial(best_params)
 
             # Final Model Training on Outer Fold 
-            # Using the best hyperparameters from the inner Optuna study (fixed_trial),
-            # fit the model on the full training data from the current outer fold (X_train_outer, y_train_outer),
-            # then evaluate its performance on the corresponding outer test fold (X_test_outer, y_test_outer).
-            # This simulates a real-world generalisation test and provides unbiased performance metrics.
-
             if model_type == 'feed_forward_keras':
-                  loss_cfg = get_loss_and_weights(FixedTrial(best_params), y_train_outer, model_type=model_type)
-                  pos_weight = loss_cfg["scale_pos_weight"]
                   best_params["loss_fn_details"] = {
-                        "loss_fn": best_params.get("loss_fn", "bce"),
+                        "loss_fn": loss_fn_choice,
                         "pos_weight": best_params.get("pos_weight", 1.0),
                         "alpha": best_params.get("alpha") if "alpha" in best_params else None,
                         "gamma": best_params.get("gamma") if "gamma" in best_params else None
                         }
-                  final_model = build_model(model_type, fixed_trial, input_dim=X_train_outer.shape[1], y_train=y_train_outer, metric_name=metric_name)
+                  final_model = build_model(model_type, fixed_trial, input_dim=X_train_outer.shape[1], y_train=y_train_outer, metric_name=metric_name, loss_fn_choice=loss_fn_choice)
                   scaler = StandardScaler().fit(X_train_outer)
                   X_train_scaled = scaler.transform(X_train_outer)
                   X_test_scaled = scaler.transform(X_test_outer)
             else:
-                  loss_cfg = get_loss_and_weights(FixedTrial(best_params), y_train_outer, model_type=model_type)
-                  pos_weight = loss_cfg["scale_pos_weight"]
+                  loss_cfg = get_loss_and_weights(FixedTrial(best_params), y_train_outer, model_type=model_type, loss_fn_choice=loss_fn_choice)
                   best_params["loss_fn_details"] = {
-                        "loss_fn": best_params.get("loss_fn", "bce"),
-                        "scale_pos_weight": pos_weight
+                        "loss_fn": loss_fn_choice,
+                        "scale_pos_weight": loss_cfg["scale_pos_weight"],
                         }
-                  final_model = build_model(model_type, fixed_trial)
+                  final_model = build_model(model_type, fixed_trial, y_train=y_train_outer, loss_fn_choice=loss_fn_choice)
                   X_train_scaled = X_train_outer
                   X_test_scaled = X_test_outer
 
             fold_logger.info("   · Fitting final model on outer-train subset…")
 
+            monitor_name = 'val_auprc' if metric_name == 'auprc' else 'val_auc'
             if model_type == 'feed_forward_keras':
                   early_stop = keras.callbacks.EarlyStopping(
-                        monitor=f'val_{metric_name}',
+                        monitor=monitor_name,
                         patience=2,
                         restore_best_weights=True
                         )
@@ -649,6 +655,10 @@ def train_with_nested_cv_and_optuna(
       logger.info(f"Overall mean AUPRC={outer_auprc.mean():.3f} ± {outer_auprc.std():.3f}")
       logger.info(f"Overall mean AUC={outer_auc.mean():.3f} ± {outer_auc.std():.3f}")
 
+      # Clean up memory
+      del final_model
+      gc.collect()
+
 ##############################################################################
 
 
@@ -675,7 +685,7 @@ X_sub, y_sub = X_balanced, y_balanced
 # y_sub = y.iloc[subset_idx] 
 
 # Train the considered machine learning models
-dir_out_temp = os.path.join(git_repo, dir_out, eval_metric, model_2_train)
+dir_out_temp = os.path.join(git_repo, dir_out, loss_fn_choice, eval_metric, model_2_train)
 train_with_nested_cv_and_optuna(
       X_sub,
       y_sub,
@@ -685,5 +695,6 @@ train_with_nested_cv_and_optuna(
       n_outer = 2,
       n_inner = 2,
       n_repeats = 1,
-      metric_name=eval_metric
+      metric_name=eval_metric,
+      loss_fn_choice=loss_fn_choice
       )
