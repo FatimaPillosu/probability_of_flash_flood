@@ -18,7 +18,7 @@ import metview as mv
 # INPUT PARAMETERS DESCRIPTION
 # the_date_start (date, in YYYYMMDDHH format): start of the accumulation period to consider.
 # mask_domain (list of floats, in S/W/N/E coordinates): domain's coordinates.
-# type_plot (string): type of plot. Valid values are "c" to open a Metview window or "file" to save the map as a jpeg. 
+# type_plot (string): type of plot. Valid values are "interactive" to open a Metview window or "file" to save the map as a jpeg. 
 # git_repo (string): repository's local path.
 # file_in_mask (string): relative path of the file containing the domain's mask.
 # dir_in_point (string): relative path of the directory containing the point accumulated flash flood reports.
@@ -26,9 +26,9 @@ import metview as mv
 # dir_out (string): relative path of the directory containing the map plot with the point and gridded accumulated flash flood reports. Used only when "type_plot = file".
 
 # INPUT PARAMETERS
-the_date_start = datetime(2021,9,1,0)
+the_date_start = datetime(2021,8,30,0)
 mask_domain = [22,-130,52,-60]
-type_plot = "interactive"
+type_plot = "file"
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
 file_in_mask = "data/raw/mask/usa_era5.grib"
 dir_in_point = "data/processed/02_point_acc_reports_ff"

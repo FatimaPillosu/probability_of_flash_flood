@@ -55,6 +55,8 @@ import gc
 # eval_metric (string): evaluation metric for the data-driven models. Valid values are:
 #                                         - auc: area under the roc curve.
 #                                         - auprc: area under the precion-recall curve.
+# n_outer (integer): number of outer folds to consider.
+# outer_fold_to_run (integer): outer fold to run.
 # feature_cols (list of strings): list of feature columns' names, i.e. model's predictors.
 # target_col (string): target column's name, i.e. model's predictand.
 # git_repo (string): repository's local path.
@@ -66,6 +68,8 @@ import gc
 model_2_train = sys.argv[1]
 loss_fn_choice = sys.argv[2]
 eval_metric = sys.argv[3]
+n_outer = int(sys.argv[4])
+outer_fold_to_run = int(sys.argv[5])
 feature_cols = ["tp_prob_1", "tp_prob_max_1_adj_gb", "tp_prob_50", "tp_prob_max_50_adj_gb", "swvl", "sdfor", "lai"]
 target_col = "ff"
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
@@ -403,7 +407,7 @@ def build_model(model_type: str, trial, input_dim: int = None, y_train=None, met
 
 def inner_objective(trial, model_type, X_train, y_train, n_splits=5, n_repeats=10, metric_name='auc'):
 
-      logger.info(f"   · Trial {trial.number} started with loss function: {loss_fn_choice}") 
+      logger.info(f"   · Trial {trial.number + 1} started with loss function: {loss_fn_choice}") 
 
       if model_type == 'feed_forward_keras': # Neural Network Models
             
@@ -525,163 +529,184 @@ def train_with_nested_cv_and_optuna(
       loss_fn_choice: str = "bce"
       ):
       
-      outer_cv = RepeatedStratifiedKFold(
+      all_splits = list(RepeatedStratifiedKFold(
             n_splits=n_outer, 
             n_repeats=n_repeats,
             random_state=42
+            ).split(X, y))
+      split_idx = outer_fold_to_run - 1
+      rep = (split_idx) // n_outer    
+      fold = (split_idx) %  n_outer 
+      print(rep, fold)
+      train_index, test_index = all_splits[split_idx]
+      
+      fold_logger = logging.getLogger(f"{__name__}.rep{rep}.fold{fold}")
+      fold_logger.info(f"=== Outer repeat {rep+1}/{n_repeats}, fold {fold+1}/{n_outer} ===")
+      fold_logger.debug(f"Train positives: {y.iloc[train_index].sum():,} | " 
+            f"Test positives: {y.iloc[test_index].sum():,}"
+            )
+      X_train_outer, X_test_outer = X.iloc[train_index], X.iloc[test_index]
+      y_train_outer, y_test_outer = y.iloc[train_index], y.iloc[test_index]
+
+      fold_logger.info(f"Launching Optuna study with metric={metric_name}, loss={loss_fn_choice}")
+
+      study = optuna.create_study(
+            direction='maximize', 
+            sampler=optuna.samplers.TPESampler(seed=42),
+            pruner=PRUNER
+            )
+      study.optimize(
+            lambda t: inner_objective(
+                  t, model_type, X_train_outer, y_train_outer, n_splits=n_inner, metric_name=metric_name
+                  ),
+            n_trials=n_trials,
             )
 
-      shape_scores = (n_repeats, n_outer)
-      outer_auprc   = np.zeros(shape_scores)
-      outer_auc  = np.zeros(shape_scores)
-      outer_best_thresholds = np.zeros(shape_scores)
+      # Saving data from Optuna's optimisation
+      optuna_dir = os.path.join(dir_out, "optuna")
+      os.makedirs(optuna_dir, exist_ok=True)
 
-      logger.info("Finished reading data. Entering outer CV loop…")
-
-      for split_idx, (train_index, test_index) in enumerate(outer_cv.split(X, y), 1):
+      df_trials = study.trials_dataframe()
+      df_trials["wall_secs"] = (
+            df_trials["datetime_complete"] - df_trials["datetime_start"]
+      ).dt.total_seconds()
+      df_trials.to_csv(
+            os.path.join(optuna_dir, f"trials_rep{rep+1}_fold{fold+1}.csv"), index=False
+      )
+      
+      best_params = study.best_params
+      best_params["optuna_best_score"] = study.best_value 
+      
+      if model_type == 'feed_forward_keras':
+            best_params["loss_fn_details"] = {
+                  "loss_type": loss_fn_choice,
+                  "pos_weight": best_params.get("pos_weight", 1.0),
+                  "alpha": best_params.get("alpha") if "alpha" in best_params else None,
+                  "gamma": best_params.get("gamma") if "gamma" in best_params else None
+            }
+      
+      else:
             
-            rep = (split_idx - 1) // n_outer    
-            fold = (split_idx - 1) %  n_outer    
-            fold_logger = logging.getLogger(f"{__name__}.rep{rep}.fold{fold}")
-            fold_logger.info(f"=== Outer repeat {rep+1}/{n_repeats}, fold {fold+1}/{n_outer} ===")
-            fold_logger.debug(f"Train positives: {y.iloc[train_index].sum():,} | " 
-                              f"Test positives: {y.iloc[test_index].sum():,}"
-                              )
+            if model_type in {'gradient_boosting_xgboost', 'random_forest_xgboost'}:
+                  loss_fn_name = "xgb_objective"
+            elif model_type in {'gradient_boosting_lightgbm', 'random_forest_lightgbm'}:
+                  loss_fn_name = "lgb_objective"
+            elif model_type == 'gradient_boosting_catboost':
+                  loss_fn_name = "catboost_loss"
 
-            X_train_outer, X_test_outer = X.iloc[train_index], X.iloc[test_index]
-            y_train_outer, y_test_outer = y.iloc[train_index], y.iloc[test_index]
+            loss_cfg = get_loss_and_weights(FixedTrial(best_params), y_train_outer, model_type=model_type, loss_fn_choice=loss_fn_choice)
+            best_params["loss_fn_details"] = {
+                  "loss_type": loss_fn_choice,
+                  "loss_fn": loss_cfg.get(loss_fn_name),
+                  "scale_pos_weight": loss_cfg["scale_pos_weight"],
+            }
 
-            fold_logger.info(f"Launching Optuna study with metric={metric_name}, loss={loss_fn_choice}")
+      with open(os.path.join(optuna_dir, f"best_params_rep{rep+1}_fold{fold+1}.json"), "w") as fp: 
+            json.dump(best_params, fp, indent=2)
 
-            study = optuna.create_study(
-                  direction='maximize', 
-                  sampler=optuna.samplers.TPESampler(seed=42),
-                  pruner=PRUNER
+      fold_logger.info(f"   · Optuna done. Best score ({metric_name.upper()})={study.best_value:.3f}")
+      fixed_trial = FixedTrial(best_params)
+
+      # Final Model Training on Outer Fold 
+      if model_type == 'feed_forward_keras':
+            
+            final_model, class_weights = build_model(
+                  model_type,
+                  fixed_trial,
+                  input_dim=X_train_outer.shape[1],
+                  y_train=y_train_outer,
+                  metric_name=metric_name,
+                  loss_fn_choice=loss_fn_choice
                   )
-            study.optimize(
-                  lambda t: inner_objective(
-                        t, model_type, X_train_outer, y_train_outer, n_splits=n_inner, metric_name=metric_name
-                        ),
-                  n_trials=n_trials,
+            scaler = StandardScaler().fit(X_train_outer)
+            X_train_scaled = scaler.transform(X_train_outer)
+            X_test_scaled = scaler.transform(X_test_outer)
+      
+      else: # tree-based algorithms
+            
+            loss_cfg = get_loss_and_weights(
+                  FixedTrial(best_params), 
+                  y_train_outer, 
+                  model_type=model_type, 
+                  loss_fn_choice=loss_fn_choice
                   )
+            
+            final_model = build_model(
+                  model_type, 
+                  fixed_trial, 
+                  y_train=y_train_outer, 
+                  loss_fn_choice=loss_fn_choice
+                  )
+            
+            X_train_scaled = X_train_outer
+            X_test_scaled = X_test_outer
 
-            # Saving data from Optuna's optimisation
-            optuna_dir = os.path.join(dir_out, "optuna")
-            os.makedirs(optuna_dir, exist_ok=True)
+      fold_logger.info("   · Fitting final model on outer-train subset…")
 
-            df_trials = study.trials_dataframe()
-            df_trials["wall_secs"] = (
-                  df_trials["datetime_complete"] - df_trials["datetime_start"]
-            ).dt.total_seconds()
-            df_trials.to_csv(
-                  os.path.join(optuna_dir, f"trials_rep{rep+1}_fold{fold+1}.csv"), index=False
+      monitor_name = 'val_auprc' if metric_name == 'auprc' else 'val_auc'
+      
+      if model_type == 'feed_forward_keras':
+            
+            early_stop = keras.callbacks.EarlyStopping(
+                  monitor=monitor_name,
+                  patience=3,
+                  restore_best_weights=True
+                  )
+            
+            final_model.fit(
+                  X_train_scaled, 
+                  y_train_outer.values,
+                  batch_size=best_params.get("batch_size", 64),
+                  epochs=20,
+                  validation_data=(X_test_scaled, y_test_outer.values),
+                  callbacks=[early_stop],
+                  class_weight=class_weights,
+                  verbose=0
+                  )
+            
+            y_pred_prob = final_model.predict(X_test_scaled)
+      
+      else: # tree-based algorithms
+            
+            final_model.fit(X_train_scaled, y_train_outer)
+            
+            y_pred_prob = final_model.predict_proba(X_test_scaled)[:, 1]
+
+      precision, recall, thr_pr = precision_recall_curve(y_test_outer, y_pred_prob)
+      f1_curve = 2 * (precision * recall) / (precision + recall + 1e-6)
+      best_thr = thr_pr[np.argmax(f1_curve)] if thr_pr.size else 0.5
+
+      outer_auprc = evaluate_auprc(y_test_outer, y_pred_prob)
+      outer_auc = evaluate_auc(y_test_outer, y_pred_prob)
+      outer_best_thresholds = best_thr
+      obs_freq, prob_pred = calibration_curve(y_test_outer, y_pred_prob, n_bins=100)
+      far, hr, thr_roc = roc_curve(y_test_outer, y_pred_prob)
+
+      fold_logger.info(
+            f"   · Outer test AUPRC={outer_auprc:.3f} "
+            f"   · Outer test AUC={outer_auc:.3f} "
             )
-            
-            best_params = study.best_params
-            best_params["optuna_best_score"] = study.best_value 
-            
-            if model_type == 'feed_forward_keras':
-                  best_params["loss_fn_details"] = {
-                        "loss_type": loss_fn_choice,
-                        "pos_weight": best_params.get("pos_weight", 1.0),
-                        "alpha": best_params.get("alpha") if "alpha" in best_params else None,
-                        "gamma": best_params.get("gamma") if "gamma" in best_params else None
-                  }
-            
-            else:
-                  
-                  if model_type in {'gradient_boosting_xgboost', 'random_forest_xgboost'}:
-                        loss_fn_name = "xgb_objective"
-                  elif model_type in {'gradient_boosting_lightgbm', 'random_forest_lightgbm'}:
-                        loss_fn_name = "lgb_objective"
-                  elif model_type == 'gradient_boosting_catboost':
-                        loss_fn_name = "catboost_loss"
 
-                  loss_cfg = get_loss_and_weights(FixedTrial(best_params), y_train_outer, model_type=model_type, loss_fn_choice=loss_fn_choice)
-                  best_params["loss_fn_details"] = {
-                        "loss_type": loss_fn_choice,
-                        "loss_fn": loss_cfg.get(loss_fn_name),
-                        "scale_pos_weight": loss_cfg["scale_pos_weight"],
-                  }
+      # Saving tests outputs for the outer fold
+      os.makedirs(dir_out, exist_ok=True)
 
-            with open(os.path.join(optuna_dir, f"best_params_rep{rep+1}_fold{fold+1}.json"), "w") as fp: 
-                  json.dump(best_params, fp, indent=2)
+      prefix = f"rep{rep+1}_fold{fold+1}"
+      if model_type == 'feed_forward_keras':
+            final_model.save(os.path.join(dir_out, "model_"+ str(prefix) + ".h5"))
+      else:
+            joblib.dump(final_model, os.path.join(dir_out, "model_"+ str(prefix) + ".joblib"))
+      np.save(os.path.join(dir_out, f"obs_freq_{prefix}.npy"), np.array(obs_freq))
+      np.save(os.path.join(dir_out, f"prob_pred_{prefix}.npy"), np.array(prob_pred))
+      np.save(os.path.join(dir_out, f"far_{prefix}.npy"), np.array(far))
+      np.save(os.path.join(dir_out, f"hr_{prefix}.npy"), np.array(hr))
+      np.save(os.path.join(dir_out, f"thr_roc_{prefix}.npy"), np.array(thr_roc))
+      np.save(os.path.join(dir_out, f"precision_{prefix}.npy"), np.array(precision))
+      np.save(os.path.join(dir_out, f"recall_{prefix}.npy"), np.array(recall))
+      np.save(os.path.join(dir_out, f"aroc_{prefix}.npy"), outer_auc)
+      np.save(os.path.join(dir_out, f"auprc_{prefix}.npy"), outer_auprc)
+      np.save(os.path.join(dir_out, f"best_threshold_{prefix}.npy"), outer_best_thresholds)
 
-            fold_logger.info(f"   · Optuna done. Best score ({metric_name.upper()})={study.best_value:.3f}")
-            fixed_trial = FixedTrial(best_params)
-
-            # Final Model Training on Outer Fold 
-            if model_type == 'feed_forward_keras':
-                  final_model = build_model(model_type, fixed_trial, input_dim=X_train_outer.shape[1], y_train=y_train_outer, metric_name=metric_name, loss_fn_choice=loss_fn_choice)
-                  scaler = StandardScaler().fit(X_train_outer)
-                  X_train_scaled = scaler.transform(X_train_outer)
-                  X_test_scaled = scaler.transform(X_test_outer)
-            else:
-                  loss_cfg = get_loss_and_weights(FixedTrial(best_params), y_train_outer, model_type=model_type, loss_fn_choice=loss_fn_choice)
-                  final_model = build_model(model_type, fixed_trial, y_train=y_train_outer, loss_fn_choice=loss_fn_choice)
-                  X_train_scaled = X_train_outer
-                  X_test_scaled = X_test_outer
-
-            fold_logger.info("   · Fitting final model on outer-train subset…")
-
-            monitor_name = 'val_auprc' if metric_name == 'auprc' else 'val_auc'
-            if model_type == 'feed_forward_keras':
-                  early_stop = keras.callbacks.EarlyStopping(
-                        monitor=monitor_name,
-                        patience=3,
-                        restore_best_weights=True
-                        )
-                  final_model.fit(
-                        X_train_scaled, 
-                        y_train_outer.values,
-                        batch_size=best_params.get("batch_size", 64),
-                        epochs=20,
-                        validation_data=(X_test_scaled, y_test_outer.values),
-                        callbacks=[early_stop],
-                        verbose=0
-                        )
-                  y_pred_prob = final_model.predict(X_test_scaled)[:, 1]
-            else:
-                  final_model.fit(X_train_scaled, y_train_outer)
-                  y_pred_prob = final_model.predict_proba(X_test_scaled)[:, 1]
-
-            precision, recall, thr_pr = precision_recall_curve(y_test_outer, y_pred_prob)
-            f1_curve = 2 * (precision * recall) / (precision + recall + 1e-6)
-            best_thr = thr_pr[np.argmax(f1_curve)] if thr_pr.size else 0.5
-
-            outer_auprc[rep, fold] = evaluate_auprc(y_test_outer, y_pred_prob)
-            outer_auc[rep, fold] = evaluate_auc(y_test_outer, y_pred_prob)
-            outer_best_thresholds[rep, fold] = best_thr
-            obs_freq, prob_pred = calibration_curve(y_test_outer, y_pred_prob, n_bins=100)
-            far, hr, thr_roc = roc_curve(y_test_outer, y_pred_prob)
-
-            fold_logger.info(
-                  f"   · Outer test AUPRC={outer_auprc[rep, fold]:.3f} "
-                  f"   · Outer test AUC={outer_auc[rep, fold]:.3f} "
-                  )
-
-            # Saving tests outputs for the outer fold
-            os.makedirs(dir_out, exist_ok=True)
-
-            prefix = f"rep{rep+1}_fold{fold+1}"
-            if model_type == 'feed_forward_keras':
-                  final_model.save(os.path.join(dir_out, "model_"+ str(prefix) + ".h5"))
-            else:
-                  joblib.dump(final_model, os.path.join(dir_out, "model_"+ str(prefix) + ".joblib"))
-            np.save(os.path.join(dir_out, f"obs_freq_{prefix}.npy"), np.array(obs_freq))
-            np.save(os.path.join(dir_out, f"prob_pred_{prefix}.npy"), np.array(prob_pred))
-            np.save(os.path.join(dir_out, f"far_{prefix}.npy"), np.array(far))
-            np.save(os.path.join(dir_out, f"hr_{prefix}.npy"), np.array(hr))
-            np.save(os.path.join(dir_out, f"thr_roc_{prefix}.npy"), np.array(thr_roc))
-            np.save(os.path.join(dir_out, f"precision_{prefix}.npy"), np.array(precision))
-            np.save(os.path.join(dir_out, f"recall_{prefix}.npy"), np.array(recall))
-      np.save(os.path.join(dir_out, "aroc"), outer_auc)
-      np.save(os.path.join(dir_out, "auprc"), outer_auprc)
-      np.save(os.path.join(dir_out, "best_threshold"), outer_best_thresholds)
-
-      logger.info("★ All outer folds finished.")
-      logger.info(f"Overall mean AUPRC={outer_auprc.mean():.3f} ± {outer_auprc.std():.3f}")
-      logger.info(f"Overall mean AUC={outer_auc.mean():.3f} ± {outer_auc.std():.3f}")
+      logger.info("★ Outer fold finished.")
 
       # Clean up memory
       del final_model
@@ -710,7 +735,7 @@ train_with_nested_cv_and_optuna(
       model_type=model_2_train,
       dir_out=dir_out_temp,
       n_trials = 20,
-      n_outer = 5,
+      n_outer = n_outer,
       n_inner = 3,
       n_repeats = 1,
       metric_name=eval_metric,
