@@ -25,7 +25,7 @@ import metview as mv
 
 #######################################################################
 # INPUT PARAMETERS
-the_date = datetime(2021,9,1)
+the_date = datetime(2021,8,29)
 rp_list = [1, 2, 5, 10, 20, 50, 100]
 mask_domain = [22,-130,52,-60]
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
@@ -53,7 +53,7 @@ for rp in rp_list:
             
       print("Reading 24-hourly rainfall")
       prob = mv.read(git_repo + "/" + dir_in + "/" + str(rp) + "rp" + "/" + the_date_time_final.strftime("%Y%m") + "/prob_exceed_rp_" + the_date_time_final.strftime("%Y%m%d") + "_" + the_date_time_final.strftime("%H") + ".grib")
-      prob_bitmap = mv.bitmap(prob, mask_bitmap)
+      #prob_bitmap = mv.bitmap(prob, mask_bitmap)
       
       # Plotting the probability
       coastlines = mv.mcoast(
@@ -106,4 +106,4 @@ for rp in rp_list:
       file_out = dir_out_temp + "/prob_exceed_" + str(rp) + "_rp"  + ".grib"
       png = mv.png_output(output_width = 5000, output_name = file_out)
       mv.setoutput(png)
-      mv.plot(geo_view, prob_bitmap, contouring, legend)
+      mv.plot(geo_view, prob, contouring, legend)
