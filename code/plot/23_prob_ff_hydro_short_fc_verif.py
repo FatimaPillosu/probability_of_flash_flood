@@ -105,7 +105,7 @@ for loss_func in ["bce", "weighted_bce"]:
                   hr_test = hit_rate(h_test, m_test)
                   ref_test = np.sum(obs_test) / len(obs_test)
                   auprc_test_all.append(average_precision_score(obs_test, fc_prob_test))
-                  plt.plot(hr_test, p_test, "--o", color = "#33CC33", lw = 1, ms=2)
+                  plt.plot(hr_test, p_test, "--o", color = "#00B0F0", lw = 1, ms=2)
                   plt.plot([0,1], [ref_test, ref_test], "--", color = "#333333", lw = 1)
 
                   plt.xlabel("Recall", color = "#333333", fontsize = 12)
@@ -136,12 +136,12 @@ for loss_func in ["bce", "weighted_bce"]:
                   hr_test = hit_rate(h_test, m_test)
                   far_test = false_alarm_rate(fa_test, cn_test)
                   aroc_test = aroc_trapezium(hr_test, far_test)
-                  plt.plot(far_test, hr_test, "-o", color = "#33CC33", lw = 2, ms=4, label = f"AROC = {aroc_test:.3f}, min prob exceed= 1%")
+                  plt.plot(far_test, hr_test, "-o", color = "#00B0F0", lw = 2, ms=4, label = f"AROC = {aroc_test:.3f}, min prob exceed= 1%")
 
                   far_test_c, hr_test_c, thr_roc = roc_curve(obs_test, fc_prob_test)
                   aroc_test_c = auc(far_test_c, hr_test_c)
                   aroc_test_all.append(aroc_test_c)
-                  plt.plot(far_test_c, hr_test_c, "--", color = "#33CC33", lw = 2, ms=2, label = f"AROC_cont = {aroc_test_c:.3f}, min prob exceed={(thr_roc[-1] * 100):.2f}%")
+                  plt.plot(far_test_c, hr_test_c, "--", color = "#00B0F0", lw = 2, ms=2, label = f"AROC_cont = {aroc_test_c:.3f}, min prob exceed={(thr_roc[-1] * 100):.2f}%")
                   
                   plt.plot([0,1], [0, 1], "-", color = "#333333", lw = 1)
                   plt.xlabel("False Alarm Rate", color = "#333333", fontsize = 12)
@@ -164,7 +164,7 @@ for loss_func in ["bce", "weighted_bce"]:
                   plt.plot(mean_prob_fc_train, mean_freq_obs_train * 100, "-o", color = "#800080", lw = 1, ms=2)
                   
                   mean_prob_fc_test, mean_freq_obs_test, sharpness_test = reliability_diagram(obs_test, fc_prob_test)
-                  plt.plot(mean_prob_fc_test, mean_freq_obs_test * 100, "-o", color = "#33CC33", lw = 1, ms=2)
+                  plt.plot(mean_prob_fc_test, mean_freq_obs_test * 100, "-o", color = "#00B0F0", lw = 1, ms=2)
                   
                   plt.plot([0,100], [0, 100], color = "#333333", lw = 1)
                   plt.xlabel("Forecast probability", color = "#333333", fontsize = 12)
@@ -178,7 +178,7 @@ for loss_func in ["bce", "weighted_bce"]:
 
                   inset_ax = fig.add_axes([0.2, 0.7, 0.35, 0.23])
                   inset_ax.plot(np.arange(len(sharpness_train)), sharpness_train, color="#800080", lw = 1)
-                  inset_ax.plot(np.arange(len(sharpness_test)), sharpness_test, color="#33CC33", lw = 1)
+                  inset_ax.plot(np.arange(len(sharpness_test)), sharpness_test, color="#00B0F0", lw = 1)
                   inset_ax.set_title("Sharpness", fontsize=8, fontweight='bold', pad=3)
                   inset_ax.set_xlabel("Forecast Probability [%]", fontsize=8, labelpad=2)
                   inset_ax.set_ylabel("Absolute Frequency", fontsize=8, labelpad=1) 
@@ -193,7 +193,7 @@ for loss_func in ["bce", "weighted_bce"]:
 
             # Plotting the overall scores - AROC
             plt.plot(ml_trained_list, aroc_train_all, "-o", color = "#800080", lw = 1, ms=2)
-            plt.plot(ml_trained_list, aroc_test_all, "-o", color = "#33CC33", lw = 1, ms=2)
+            plt.plot(ml_trained_list, aroc_test_all, "-o", color = "#00B0F0", lw = 1, ms=2)
             plt.ylabel("AROC", color = "#333333", fontsize = 12)
             plt.tick_params(axis='x', colors='#333333', labelsize=12, )
             plt.tick_params(axis='y', colors='#333333', labelsize=12)
@@ -206,7 +206,7 @@ for loss_func in ["bce", "weighted_bce"]:
       
             # Plotting the overall scores - AUPRC
             plt.plot(ml_trained_list, auprc_train_all, "-o", color = "#800080", lw = 1, ms=2)
-            plt.plot(ml_trained_list, auprc_test_all, "-o", color = "#33CC33", lw = 1, ms=2)
+            plt.plot(ml_trained_list, auprc_test_all, "-o", color = "#00B0F0", lw = 1, ms=2)
             plt.ylabel("AUPRC", color = "#333333", fontsize = 12)
             plt.tick_params(axis='x', colors='#333333', labelsize=12, )
             plt.tick_params(axis='y', colors='#333333', labelsize=12)
@@ -218,7 +218,7 @@ for loss_func in ["bce", "weighted_bce"]:
 
             # Plotting the overall scores - FB
             plt.plot(ml_trained_list, fb_train_all, "-o", color = "#800080", lw = 1, ms=2)
-            plt.plot(ml_trained_list, fb_test_all, "-o", color = "#33CC33", lw = 1, ms=2)
+            plt.plot(ml_trained_list, fb_test_all, "-o", color = "#00B0F0", lw = 1, ms=2)
             plt.ylabel("FB", color = "#333333", fontsize = 12)
             plt.tick_params(axis='x', colors='#333333', labelsize=12, )
             plt.tick_params(axis='y', colors='#333333', labelsize=12)

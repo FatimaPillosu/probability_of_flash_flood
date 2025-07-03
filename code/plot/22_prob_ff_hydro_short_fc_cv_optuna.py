@@ -55,83 +55,83 @@ for loss_func in ["bce", "weighted_bce"]:
                   ylim = [0,0.04]
 
 
-            # Plots about model's generalisation capabilities under imbalanced datasets
-            print(" - Plots about model's generalisation capabilities under imbalanced datasets")
+            # # Plots about model's generalisation capabilities under imbalanced datasets
+            # print(" - Plots about model's generalisation capabilities under imbalanced datasets")
             
-            for ind_ml, ml_trained in enumerate(ml_trained_list):
+            # for ind_ml, ml_trained in enumerate(ml_trained_list):
                   
-                  colours_ml_trained = colours_ml_trained_list[ind_ml]
-                  dir_in_temp = f'{git_repo}/{dir_in}/{loss_func}/{eval_metric}/{ml_trained}'
+            #       colours_ml_trained = colours_ml_trained_list[ind_ml]
+            #       dir_in_temp = f'{git_repo}/{dir_in}/{loss_func}/{eval_metric}/{ml_trained}'
 
-                  plt.figure(figsize=(4, 4))
+            #       plt.figure(figsize=(4, 4))
 
-                  for ind_rep in range(num_rep):
+            #       for ind_rep in range(num_rep):
                         
-                        test = []
-                        mean = []
-                        max = []
-                        min = []
+            #             test = []
+            #             mean = []
+            #             max = []
+            #             min = []
                         
-                        for ind_k in range(num_k_outer):
+            #             for ind_k in range(num_k_outer):
                               
-                              df = pd.read_csv(f'{dir_in_temp}/optuna/trials_rep{ind_rep + 1}_fold{ind_k + 1}.csv', delimiter = ",")
-                              eval_metric_vals = df["value"]
-                              mean.append(eval_metric_vals.mean())
-                              max.append(eval_metric_vals.max())
-                              min.append(eval_metric_vals.min())
+            #                   df = pd.read_csv(f'{dir_in_temp}/optuna/trials_rep{ind_rep + 1}_fold{ind_k + 1}.csv', delimiter = ",")
+            #                   eval_metric_vals = df["value"]
+            #                   mean.append(eval_metric_vals.mean())
+            #                   max.append(eval_metric_vals.max())
+            #                   min.append(eval_metric_vals.min())
 
-                              test.append(np.load(f'{dir_in_temp}/{metric_name}_rep{ind_rep + 1}_fold{ind_k + 1}.npy'))
+            #                   test.append(np.load(f'{dir_in_temp}/{metric_name}_rep{ind_rep + 1}_fold{ind_k + 1}.npy'))
                               
-                        plt.plot(np.arange(1, num_k_outer + 1), np.array(mean), color = "#E98A15", lw = 2)
-                        plt.fill_between(np.arange(1, num_k_outer + 1), np.array(min), np.array(max, ), color = "#E98A15", alpha=0.4, edgecolor="none")
-                        plt.plot(np.arange(1, num_k_outer + 1), np.array(test), "--", color = "#2CA58D", lw = 2)
-                        plt.xlabel("Outer folds", color = "#333333", fontsize = 12)
-                        plt.ylabel(eval_metric.upper(), color = "#333333", fontsize = 12)
-                        plt.tick_params(axis='x', colors='#333333', labelsize=12)
-                        plt.tick_params(axis='y', colors='#333333', labelsize=12)
-                        plt.ylim(ylim)
-                        plt.tight_layout()
+            #             plt.plot(np.arange(1, num_k_outer + 1), np.array(mean), color = "#E98A15", lw = 2)
+            #             plt.fill_between(np.arange(1, num_k_outer + 1), np.array(min), np.array(max, ), color = "#E98A15", alpha=0.4, edgecolor="none")
+            #             plt.plot(np.arange(1, num_k_outer + 1), np.array(test), "--", color = "#2CA58D", lw = 2)
+            #             plt.xlabel("Outer folds", color = "#333333", fontsize = 12)
+            #             plt.ylabel(eval_metric.upper(), color = "#333333", fontsize = 12)
+            #             plt.tick_params(axis='x', colors='#333333', labelsize=12)
+            #             plt.tick_params(axis='y', colors='#333333', labelsize=12)
+            #             plt.ylim(ylim)
+            #             plt.tight_layout()
 
-                        dir_out_temp = f'{git_repo}/{dir_out}/{loss_func}/{eval_metric}/{ml_trained}'
-                        os.makedirs(dir_out_temp, exist_ok=True)        
-                        plt.savefig(f'{dir_out_temp}/model_generalisation.png', dpi=1000)
-                        plt.close()
+            #             dir_out_temp = f'{git_repo}/{dir_out}/{loss_func}/{eval_metric}/{ml_trained}'
+            #             os.makedirs(dir_out_temp, exist_ok=True)        
+            #             plt.savefig(f'{dir_out_temp}/model_generalisation.png', dpi=1000)
+            #             plt.close()
 
 
-            # Plots about Optuna's optimisation history
-            print(" - Plots about Optuna's optimisation history")
-            for ind_ml, ml_trained in enumerate(ml_trained_list):
+            # # Plots about Optuna's optimisation history
+            # print(" - Plots about Optuna's optimisation history")
+            # for ind_ml, ml_trained in enumerate(ml_trained_list):
                   
-                  colours_ml_trained = colours_ml_trained_list[ind_ml]
-                  dir_in_temp = f'{git_repo}/{dir_in}/{loss_func}/{eval_metric}/{ml_trained}/optuna'
+            #       colours_ml_trained = colours_ml_trained_list[ind_ml]
+            #       dir_in_temp = f'{git_repo}/{dir_in}/{loss_func}/{eval_metric}/{ml_trained}/optuna'
                   
-                  plt.figure(figsize=(4, 4))
+            #       plt.figure(figsize=(4, 4))
 
-                  for ind_rep in range(num_rep):
+            #       for ind_rep in range(num_rep):
 
-                        for ind_rep in range(num_rep):
+            #             for ind_rep in range(num_rep):
 
-                              alpha = [0.1, 0.2, 0.4, 0.6, 0.9]
-                              for ind_k in range(num_k_outer):
+            #                   alpha = [0.1, 0.2, 0.4, 0.6, 0.9]
+            #                   for ind_k in range(num_k_outer):
                               
-                                    df = pd.read_csv(f'{dir_in_temp}/trials_rep{ind_rep + 1}_fold{ind_k+1}.csv', delimiter = ",")
+            #                         df = pd.read_csv(f'{dir_in_temp}/trials_rep{ind_rep + 1}_fold{ind_k+1}.csv', delimiter = ",")
                                     
-                                    plt.plot(df["number"]+1, df["value"], "o--", markersize=2, lw=1, color="#888888", alpha = alpha[ind_k])
-                                    plt.plot(df["number"]+1, df["value"].cummax(), linestyle="-", lw = 3, color="#E98A15", alpha = alpha[ind_k])
+            #                         plt.plot(df["number"]+1, df["value"], "o--", markersize=2, lw=1, color="#888888", alpha = alpha[ind_k])
+            #                         plt.plot(df["number"]+1, df["value"].cummax(), linestyle="-", lw = 3, color="#E98A15", alpha = alpha[ind_k])
                               
-                              plt.xlabel("Trial number", color = "#333333", fontsize = 12)
-                              plt.ylabel(eval_metric, color = "#333333", fontsize = 12)
-                              plt.tick_params(axis='x', colors='#333333', labelsize=12)
-                              plt.tick_params(axis='y', colors='#333333', labelsize=12)
-                              plt.ylim(ylim)
-                              plt.xticks(df["number"] + 1)
-                              plt.xticks(df["number"]+1, [str(i) if (i % 5 == 0 or i == 1) else "" for i in df["number"]+1])  # label every 5th tick
-                              plt.tight_layout()
+            #                   plt.xlabel("Trial number", color = "#333333", fontsize = 12)
+            #                   plt.ylabel(eval_metric, color = "#333333", fontsize = 12)
+            #                   plt.tick_params(axis='x', colors='#333333', labelsize=12)
+            #                   plt.tick_params(axis='y', colors='#333333', labelsize=12)
+            #                   plt.ylim(ylim)
+            #                   plt.xticks(df["number"] + 1)
+            #                   plt.xticks(df["number"]+1, [str(i) if (i % 5 == 0 or i == 1) else "" for i in df["number"]+1])  # label every 5th tick
+            #                   plt.tight_layout()
 
-                              dir_out_temp = f'{git_repo}/{dir_out}/{loss_func}/{eval_metric}/{ml_trained}'
-                              os.makedirs(dir_out_temp, exist_ok=True)     
-                              plt.savefig(f'{dir_out_temp}/optuna_history.png', dpi=1000)
-                              plt.close()
+            #                   dir_out_temp = f'{git_repo}/{dir_out}/{loss_func}/{eval_metric}/{ml_trained}'
+            #                   os.makedirs(dir_out_temp, exist_ok=True)     
+            #                   plt.savefig(f'{dir_out_temp}/optuna_history.png', dpi=1000)
+            #                   plt.close()
 
 
             # Plots about average model's training times
@@ -157,8 +157,8 @@ for loss_func in ["bce", "weighted_bce"]:
                               max.append(time_vals.max())
                               min.append(time_vals.min())
                               
-                        plt.plot(np.arange(1, num_k_outer + 1), np.array(mean), color = "#333333", lw = 2)
-                        plt.fill_between(np.arange(1, num_k_outer + 1), np.array(min), np.array(max, ), color = "#333333", alpha=0.4, edgecolor="none")
+                        plt.plot(np.arange(1, num_k_outer + 1), np.array(mean), color = "#FF0066", lw = 2)
+                        plt.fill_between(np.arange(1, num_k_outer + 1), np.array(min), np.array(max, ), color = "#FF0066", alpha=0.4, edgecolor="none")
                         plt.xlabel("Outer folds", color = "#333333", fontsize = 12)
                         plt.ylabel("Times [seconds]", color = "#333333", fontsize = 12)
                         plt.tick_params(axis='x', colors='#333333', labelsize=12)
@@ -168,6 +168,12 @@ for loss_func in ["bce", "weighted_bce"]:
                         dir_out_temp = f'{git_repo}/{dir_out}/{loss_func}/{eval_metric}/{ml_trained}'
                         os.makedirs(dir_out_temp, exist_ok=True)        
                         plt.savefig(f'{dir_out_temp}/training_time.png', dpi=1000)
+
+                        plt.ylim([-10,6000])
+                        
+                        dir_out_temp = f'{git_repo}/{dir_out}/{loss_func}/{eval_metric}/{ml_trained}'
+                        os.makedirs(dir_out_temp, exist_ok=True)        
+                        plt.savefig(f'{dir_out_temp}/training_time_standard.png', dpi=1000)
                         plt.close()
 
 
@@ -202,7 +208,7 @@ for loss_func in ["bce", "weighted_bce"]:
 
                         mean_imp.index = mean_imp.index.str.replace(r"^params_", "", regex=True)
                         plt.barh(mean_imp.index, [1] * len(mean_imp.values), color="whitesmoke", edgecolor="gainsboro", linewidth=0.5)
-                        plt.barh(mean_imp.index, mean_imp.values, xerr=err_imp, color="#888888", error_kw={
+                        plt.barh(mean_imp.index, mean_imp.values, xerr=err_imp, color="#FF0066", error_kw={
                         "ecolor":   "#333333",
                         "elinewidth": 1.2,
                         "capsize": 4,
