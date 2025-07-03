@@ -16,14 +16,14 @@ from optuna.integration import (
 from optuna.trial import FixedTrial
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import RepeatedStratifiedKFold, StratifiedShuffleSplit
-from sklearn.metrics import roc_curve, auc, average_precision_score, precision_recall_curve
-from sklearn.calibration import calibration_curve
 from xgboost import XGBClassifier, XGBRFClassifier
 from lightgbm import LGBMClassifier
 from catboost import CatBoostClassifier
 import xgboost as xgb
-from packaging import version
 from tensorflow import keras
+from sklearn.metrics import roc_curve, auc, average_precision_score, precision_recall_curve
+from sklearn.calibration import calibration_curve
+from packaging import version
 import joblib
 import gc
 
@@ -42,13 +42,13 @@ import gc
 # License: Creative Commons Attribution-NonCommercial_ShareAlike 4.0 International
 
 # INPUT PARAMETERS DESCRIPTION
-# model_2_train_list (list of strings): names of the models to train. Valid values are:
-#                                                                 - random_forest_xgboost
-#                                                                 - random_forest_lightgbm
-#                                                                 - gradient_boosting_xgboost
-#                                                                 - gradient_boosting_lightgbm
-#                                                                 - gradient_boosting_catboost
-#                                                                 - feed_forward_keras
+# model_2_train (string): name of the model to train. Valid values are:
+#                                               - random_forest_xgboost
+#                                               - random_forest_lightgbm
+#                                               - gradient_boosting_xgboost
+#                                               - gradient_boosting_lightgbm
+#                                               - gradient_boosting_catboost
+#                                                - feed_forward_keras
 # loss_fn_choice (string): type of loss function considered. Valid values are:
 #                                               - bce: no weights applied to loss function.
 #                                               - weighted_bce: wheight applied to loss function.
@@ -727,7 +727,7 @@ subset_idx, _ = next(sss.split(X, y))
 X_sub = X.iloc[subset_idx]
 y_sub = y.iloc[subset_idx] 
 
-# Train the considered machine learning models
+# Train the considered machine learning model
 dir_out_temp = os.path.join(git_repo, dir_out, loss_fn_choice, eval_metric, model_2_train)
 train_with_nested_cv_and_optuna(
       X_sub,

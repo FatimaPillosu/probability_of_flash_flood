@@ -58,7 +58,9 @@ def contingency_table_probabilistic(obs, prob, num_em):
             non_event_obs = obs == 0
 
             for prob_nwp in prob_nwp_list: # need to mantain the for loop due to memory issues
-
+                  
+                  print(prob_nwp)
+                  
                   yes_event_fc = prob >= prob_nwp
                   non_event_fc = ~yes_event_fc
 
@@ -82,11 +84,17 @@ def frequency_bias_prob(h, fa, m):
 
 
 ########################
-def frequency_bias_overall(obs, prob,):
+def frequency_bias_overall(obs, prob):
       yes_fc = np.sum(prob > 0)
       yes_obs = np.sum(obs > 0)
       fb = yes_fc / yes_obs
       return fb
+
+
+################
+def precision(h, fa):
+      p = h / (h + fa)
+      return p
 
 
 ###############
