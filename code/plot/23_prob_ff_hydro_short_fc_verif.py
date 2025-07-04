@@ -66,12 +66,19 @@ for loss_func in ["bce", "weighted_bce"]:
             dir_out_temp = f'{git_repo}/{dir_out}/{loss_func}/{eval_metric}'
             os.makedirs(dir_out_temp, exist_ok=True)
 
+            # Initialising the variables storing the overall scores
             auprc_train_all = []
             auprc_test_all = []
             aroc_train_all = []
             aroc_test_all = []
             fb_train_all = []
             fb_test_all = []
+
+            # Initialising the variables containing the distribution of forecast probabilities
+            fc_prob_all = []
+            fc_all = []
+            colour_all = []
+            fc_prob_max_all = []
 
             # Computing the verification scores
             for ml_trained in ml_trained_list:
@@ -83,9 +90,21 @@ for loss_func in ["bce", "weighted_bce"]:
                   fc_prob_test = np.load(f"{dir_in_temp}/{ml_trained}/fc_test.npy") * 100
                   obs_train = np.load(f"{dir_in_temp}/{ml_trained}/obs_train.npy")
                   obs_test = np.load(f"{dir_in_temp}/{ml_trained}/obs_test.npy")
-                  prob_thr = np.load(f"{dir_in_temp}/{ml_trained}/best_thr.npy")
+                  prob_thr = np.load(f"{dir_in_temp}/{ml_trained}/best_thr.npy") * 100
                   fc_train = fc_prob_train > prob_thr
                   fc_test = fc_prob_test > prob_thr
+
+                  fc_all.append(np.sum(fc_train) / len(fc_train) * 100)
+                  fc_all.append(np.sum(fc_test) / len(fc_test) * 100)
+
+                  fc_prob_all.append(fc_prob_train)
+                  fc_prob_all.append(fc_prob_test)
+
+                  fc_prob_max_all.append(np.max(fc_prob_train))
+                  fc_prob_max_all.append(np.max(fc_prob_test))
+
+                  colour_all.append("#800080")
+                  colour_all.append("#00B0F0")
 
 
                   # Computing the contingency table
@@ -226,4 +245,35 @@ for loss_func in ["bce", "weighted_bce"]:
             plt.grid(axis='y', linewidth=0.5, color='gainsboro')
             plt.tight_layout()
             plt.savefig(f'{dir_out_temp}/fb.png', dpi=1000)
+            plt.close()
+
+            # Creating the distribution plots showing the distribution of forecast probabilities and yes-events
+            fig, ax = plt.subplots(figsize=(2, 6))
+            plt.plot(fc_prob_max_all, np.arange(len(fc_prob_max_all)), "o")
+            plt.xlim([30,105])
+            plt.savefig(f'{dir_out_temp}/max_fc_prob.png', dpi=1000)
+            plt.close()
+            
+            fig, ax = plt.subplots(figsize=(5, 6))
+            plt.barh(np.arange(len(fc_all)), fc_all, color=colour_all)
+            plt.xlim([-0.01, 0.5])
+            plt.savefig(f'{dir_out_temp}/yes_events_freq.png', dpi=1000)
+            plt.close()
+      
+            fig, ax = plt.subplots(figsize=(5, 6))
+            bp = ax.boxplot(
+                        fc_prob_all, 
+                        vert=False, 
+                        patch_artist=True,
+                        showmeans=True,
+                        whis=(10, 90),
+                        showfliers=False,
+                        whiskerprops=dict(color='#333333'),
+                        capprops=dict(color='#333333'),
+                        medianprops=dict(color='#666666')
+                        )
+            for patch, color in zip(bp['boxes'], colour_all):
+                  patch.set_facecolor(color)
+            plt.xlim([-0.1, 2.5])
+            plt.savefig(f'{dir_out_temp}/fc_prob_distr.png', dpi=1000)
             plt.close()
