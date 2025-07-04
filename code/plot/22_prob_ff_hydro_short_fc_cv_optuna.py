@@ -170,7 +170,7 @@ for loss_func in ["bce", "weighted_bce"]:
                         os.makedirs(dir_out_temp, exist_ok=True)        
                         plt.savefig(f'{dir_out_temp}/training_time.png', dpi=1000)
 
-                        plt.ylim([-10,6000])
+                        plt.ylim([-10,6600])
                         plt.ticklabel_format(axis='y', style='sci', scilimits=(0,0))
 
                         dir_out_temp = f'{git_repo}/{dir_out}/{loss_func}/{eval_metric}/{ml_trained}'
