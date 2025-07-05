@@ -9,10 +9,9 @@ from utils.verif_scores import (contingency_table_probabilistic,
                                                       hit_rate, 
                                                       false_alarm_rate,
                                                       reliability_diagram,
-                                                      frequency_bias_overall,
                                                       aroc_trapezium
                                                       )
-from matplotlib.ticker import FuncFormatter, MultipleLocator, NullFormatter
+from matplotlib.ticker import FuncFormatter
 
 ########################################################################################
 # CODE DESCRIPTION
@@ -47,7 +46,7 @@ from matplotlib.ticker import FuncFormatter, MultipleLocator, NullFormatter
 ########################################################################################
 # INPUT PARAMETERS
 num_bs = 10
-ml_trained_list = ["gradient_boosting_xgboost", "random_forest_xgboost", "gradient_boosting_catboost", "gradient_boosting_lightgbm", "random_forest_lightgbm", "feed_forward_keras"]
+ml_trained_list = ["random_forest_xgboost", "random_forest_lightgbm", "gradient_boosting_xgboost", "gradient_boosting_lightgbm", "gradient_boosting_catboost", "feed_forward_keras"]
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
 dir_in = "data/processed/13_prob_ff_hydro_short_fc_retrain_best_kfold"
 dir_out = "data/plot/23_prob_ff_hydro_short_fc_verif"
@@ -211,8 +210,8 @@ for loss_func in ["bce", "weighted_bce"]:
                   plt.close()
 
                   # Computing the frequency bias
-                  fb_train_all.append(frequency_bias_overall(obs_train, fc_prob_train))
-                  fb_test_all.append(frequency_bias_overall(obs_test, fc_prob_test))
+                  fb_train_all.append(np.sum(fc_train) / np.sum(obs_train))
+                  fb_test_all.append( np.sum(fc_test) / np.sum(obs_test))
 
 
             # Plotting the overall scores - AROC
@@ -236,6 +235,7 @@ for loss_func in ["bce", "weighted_bce"]:
             plt.tick_params(axis='y', colors='#333333', labelsize=12)
             plt.xticks(rotation=20)
             plt.grid(axis='y', linewidth=0.5, color='gainsboro')
+            plt.ylim([-0.005,0.07])
             plt.tight_layout()
             plt.savefig(f'{dir_out_temp}/auprc.png', dpi=1000)
             plt.close()
@@ -279,6 +279,6 @@ for loss_func in ["bce", "weighted_bce"]:
                         )
             for patch, color in zip(bp['boxes'], colour_all):
                   patch.set_facecolor(color)
-            plt.xlim([-0.1, 2.5])
+            plt.xlim([-0.1, 15])
             plt.savefig(f'{dir_out_temp}/fc_prob_distr.png', dpi=1000)
             plt.close()
