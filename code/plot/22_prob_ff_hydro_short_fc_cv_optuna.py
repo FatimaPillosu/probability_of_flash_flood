@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 # Usage: python3 22_prob_ff_hydro_short_fc_cv_optuna.py
 
-# Runtime: ~ 2 minutes.
+# Runtime: ~ 10 minutes.
 
 # Author: Fatima M. Pillosu <fatima.pillosu@ecmwf.int> | ORCID 0000-0001-8127-0990
 # License: Creative Commons Attribution-NonCommercial_ShareAlike 4.0 International
