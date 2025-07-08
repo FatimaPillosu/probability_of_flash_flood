@@ -1,5 +1,4 @@
 import os
-import sys
 import logging
 from typing import List, Tuple
 import numpy as np
@@ -9,83 +8,57 @@ from xgboost import XGBClassifier, XGBRFClassifier
 from lightgbm import LGBMClassifier
 from catboost import CatBoostClassifier
 from tensorflow import keras
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import precision_recall_curve
 from tensorflow.keras.models import load_model
 import joblib
 import json
-from sklearn.metrics import precision_recall_curve
-
-#############################################################################################
-# CODE DESCRIPTION
-# 13_prob_ff_hydro_short_fc_retrain_best_kfold.py retrains the best model from k-fold cross validation over the 
-# whole training dataset, and tests it over the test data.
-
-# Usage: python3 13_prob_ff_hydro_short_fc_retrain_best_kfold.py
-
-# Runtime: ~ 5 minutes.
-
-# Author: Fatima M. Pillosu <fatima.pillosu@ecmwf.int> | ORCID 0000-0001-8127-0990
-# License: Creative Commons Attribution-NonCommercial_ShareAlike 4.0 International
-
-# INPUT PARAMETERS DESCRIPTION
-# model_2_train (string): name of the model to train. Valid values are:
-#                                               - random_forest_xgboost
-#                                               - random_forest_lightgbm
-#                                               - gradient_boosting_xgboost
-#                                               - gradient_boosting_lightgbm
-#                                               - gradient_boosting_catboost
-#                                                - feed_forward_keras
-# loss_fn_choice (string): type of loss function considered. Valid values are:
-#                                               - bce: no weights applied to loss function.
-#                                               - weighted_bce: wheight applied to loss function.
-# eval_metric (string): evaluation metric for the data-driven models. Valid values are:
-#                                         - auc: area under the roc curve.
-#                                         - auprc: area under the precion-recall curve.
-# rep_to_run (positive integer): repetition from the nested cross-validation to run.
-# outer_fold_to_run (positive integer): outer fold from the nested cross-validation to run.
-# feature_cols (list of strings): list of feature columns' names, i.e. model's predictors.
-# target_col (string): target column's name, i.e. model's predictand.
-# git_repo (string): repository's local path.
-# file_in_train (string): relative path of the file containing the training dataset.
-# file_in_test (string): relative path of the file containing the test dataset.
-# dir_in (string): relative path of the directory containing the machine learning model to consider.
-# dir_out (string): relative path of the directory containing the final version of the trained machine learning model.
-
-#############################################################################################
-# INPUT PARAMETERS
-model_2_train = sys.argv[1]
-loss_fn_choice = sys.argv[2]
-eval_metric = sys.argv[3]
-rep_to_run = int(sys.argv[4])
-outer_fold_to_run = int(sys.argv[5])
-feature_cols = ["tp_prob_1", "tp_prob_max_1_adj_gb", "tp_prob_50", "tp_prob_max_50_adj_gb", "swvl", "sdfor", "lai"]
-target_col = "ff"
-git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
-file_in_train = "data/processed/11_prob_ff_hydro_short_fc_combine_pdt/pdt_2001_2020.csv"
-file_in_test  = "data/processed/11_prob_ff_hydro_short_fc_combine_pdt/pdt_2021_2024.csv"
-dir_in = "data/processed/12_prob_ff_hydro_short_fc_train_ml_cv_optuna"
-dir_out = "data/processed/13_prob_ff_hydro_short_fc_retrain_best_kfold"
-##################################################################################################
-
-
-#########################
-# CHECK INPUT PARAMETERS #
-#########################
-
-valid_models = {"random_forest_xgboost", "random_forest_lightgbm", "gradient_boosting_xgboost", "gradient_boosting_lightgbm", "gradient_boosting_catboost", "feed_forward_keras"}
-assert model_2_train in valid_models, f"Invalid model: {model_2_train}"
-assert eval_metric in {'auc', 'auprc'}, f"Invalid eval_metric: {eval_metric}"
-assert loss_fn_choice in {'bce', 'weighted_bce'}, f"Invalid loss function: {loss_fn_choice}"
-
-
-#################################
-# SET-UP APPLICATION-WIDE LOGGING #
-#################################
 
 logging.basicConfig(
       level=logging.INFO, # records only messages at INFO level or higher (INFO, WARNING, ERROR, CRITICAL).
       format="%(asctime)s [%(levelname)s] %(name)s - %(message)s" # defines how each log line will look.
       )
 logger = logging.getLogger(__name__) # object for emitting log records.
+
+
+##################################################################################################
+# CODE DESCRIPTION
+# 19_prob_ff_hydro_short_fc_sensitivity_global.py runs the sensitivity analysis to assess the global application of regional trainings.
+
+# Usage: python3 19_prob_ff_hydro_short_fc_sensitivity_global.py
+
+# Runtime: ~ 1 hour.
+
+# Author: Fatima M. Pillosu <fatima.pillosu@ecmwf.int> | ORCID 0000-0001-8127-0990
+# License: Creative Commons Attribution-NonCommercial_ShareAlike 4.0 International
+
+# feature_cols (list of strings): list of feature columns' names, i.e. model's predictors.
+# target_col (string): target column's name, i.e. model's predictand.
+# model_2_train (string): name of the model to train.
+# loss_func_list (list of strings): type of loss function considered. Valid values are:
+#                                                           - bce: no weights applied to loss function.
+#                                                           - weighted_bce: wheight applied to loss function.
+# eval_metric_list (list of strings): evaluation metric for the data-driven models. Valid values are:
+#                                                           - auc: area under the roc curve.
+#                                                           - auprc: area under the precion-recall curve.
+# git_repo (string): repository's local path.
+# dir_in_model (string): relative path of the directory containing the model to consider.
+# file_in_pdt (string): relative path of the file containing the point data table to consider.
+# dir_out (string): relative path of the directory containing the shap values.
+
+##################################################################################################
+# INPUT PARAMETERS
+feature_cols = ["tp_prob_1", "tp_prob_max_1_adj_gb", "tp_prob_50", "tp_prob_max_50_adj_gb", "swvl", "sdfor", "lai"]
+target_col = "ff"
+model_2_train = "gradient_boosting_xgboost"
+loss_fn_choice = "bce"
+eval_metric = "auc"
+git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
+dir_in_model = "data/processed/13_prob_ff_hydro_short_fc_retrain_best_kfold"
+file_in_pdt_train = "data/processed/11_prob_ff_hydro_short_fc_combine_pdt/pdt_2001_2020.csv"
+file_in_pdt_test = "data/processed/11_prob_ff_hydro_short_fc_combine_pdt/pdt_2021_2024.csv"
+dir_out = "data/processed/19_prob_ff_hydro_short_fc_sensitivity_global"
+##################################################################################################
 
 
 ###################
@@ -279,29 +252,32 @@ def build_final_model(
 ##############################################################################
 
 
-# Read the training and the test datasets
-logger.info(f"\n\nReading the training dataset")
-file_in_train = git_repo + "/" + file_in_train
-file_in_test = git_repo + "/" + file_in_test
-X_train, y_train = load_data(file_in_train, feature_cols, target_col)
+# Reading the test dataset
+file_in_test = git_repo + "/" + file_in_pdt_test
 X_test, y_test = load_data(file_in_test, feature_cols, target_col)
 
-# Train the considered machine learning model
-logger.info(f"Re-training the {model_2_train} model - k-fold n. {outer_fold_to_run}")
-
+# Defining input model to train
 if model_2_train == "feed_forward_keras":
       model_ext = "h5"
 else:
       model_ext = "joblib"
+file_in = f"{git_repo}/{dir_in_model}/{loss_fn_choice}/{eval_metric}/{model_2_train}/model.{model_ext}"
 
-file_in = f"{git_repo}/{dir_in}/{loss_fn_choice}/{eval_metric}/{model_2_train}/model_rep{rep_to_run}_fold{outer_fold_to_run}.{model_ext}"
 
-best_params_file = f"{git_repo}/{dir_in}/{loss_fn_choice}/{eval_metric}/{model_2_train}/optuna/best_params_rep{rep_to_run}_fold{outer_fold_to_run}.json"
-with open(best_params_file, "r") as f:
-    data = json.load(f)
-pos_weight = data["loss_fn_details"]["pos_weight"]
+#######################################################
+# Reading the training dataset - Reducing overall 10% of the reports
+print(f"\nReading the training dataset - Reducing overall 10% of the reports")
+red = 0.1
+file_in_train = git_repo + "/" + file_in_pdt_train
+df = pd.read_csv(file_in_train)
+df_yes = df[df['ff'] == 1]
+df_no = df[df['ff'] == 0]
+df_yes_reduced = df_yes.sample(frac=(1-red), random_state=42)
+df_reduced = pd.concat([df_yes_reduced, df_no], ignore_index=True)
+X_train = df_reduced[feature_cols].copy()
+y_train = df_reduced[target_col].copy()
 
-dir_out_temp = f"{git_repo}/{dir_out}/{loss_fn_choice}/{eval_metric}/{model_2_train}"
+dir_out_temp = f"{git_repo}/{dir_out}/{loss_fn_choice}/{eval_metric}/{model_2_train}/red_10"
 os.makedirs(dir_out_temp, exist_ok=True)
 
 build_final_model(
@@ -313,6 +289,166 @@ build_final_model(
       file_in,
       eval_metric,
       loss_fn_choice,
-      pos_weight,
+      1,
+      dir_out_temp
+      )
+
+
+#######################################################
+# Reading the training dataset - Reducing overall 50% of the reports
+print(f"\nReading the training dataset - Reducing overall 50% of the reports")
+red = 0.5
+file_in_train = git_repo + "/" + file_in_pdt_train
+df = pd.read_csv(file_in_train)
+df_yes = df[df['ff'] == 1]
+df_no = df[df['ff'] == 0]
+df_yes_reduced = df_yes.sample(frac=(1-red), random_state=42)
+df_reduced = pd.concat([df_yes_reduced, df_no], ignore_index=True)
+X_train = df_reduced[feature_cols].copy()
+y_train = df_reduced[target_col].copy()
+
+dir_out_temp = f"{git_repo}/{dir_out}/{loss_fn_choice}/{eval_metric}/{model_2_train}/red_50"
+os.makedirs(dir_out_temp, exist_ok=True)
+
+build_final_model(
+      X_train, 
+      y_train, 
+      X_test, 
+      y_test, 
+      model_2_train,
+      file_in,
+      eval_metric,
+      loss_fn_choice,
+      1,
+      dir_out_temp
+      )
+
+
+#######################################################
+# Reading the training dataset - Reducing overall 90% of the reports
+print(f"\nReading the training dataset - Reducing overall 90% of the reports")
+red = 0.9
+file_in_train = git_repo + "/" + file_in_pdt_train
+df = pd.read_csv(file_in_train)
+df_yes = df[df['ff'] == 1]
+df_no = df[df['ff'] == 0]
+df_yes_reduced = df_yes.sample(frac=(1-red), random_state=42)
+df_reduced = pd.concat([df_yes_reduced, df_no], ignore_index=True)
+X_train = df_reduced[feature_cols].copy()
+y_train = df_reduced[target_col].copy()
+
+dir_out_temp = f"{git_repo}/{dir_out}/{loss_fn_choice}/{eval_metric}/{model_2_train}/red_90"
+os.makedirs(dir_out_temp, exist_ok=True)
+
+build_final_model(
+      X_train, 
+      y_train, 
+      X_test, 
+      y_test, 
+      model_2_train,
+      file_in,
+      eval_metric,
+      loss_fn_choice,
+      1,
+      dir_out_temp
+      )
+
+###################################################################
+# Reading the training dataset - Considering only Eastern Reports and Full Domain
+print(f"\nReading the training dataset - Considering only Eastern Reports and Full Domain")
+file_in_train = git_repo + "/" + file_in_pdt_train
+df = pd.read_csv(file_in_train)
+df.loc[( df["lon"] - 360 ) < -100, "ff"] = 0
+X_train = df[feature_cols].copy()
+y_train = df[target_col].copy()
+
+dir_out_temp = f"{git_repo}/{dir_out}/{loss_fn_choice}/{eval_metric}/{model_2_train}/east_rep_full_domain"
+os.makedirs(dir_out_temp, exist_ok=True)
+
+build_final_model(
+      X_train, 
+      y_train, 
+      X_test, 
+      y_test, 
+      model_2_train,
+      file_in,
+      eval_metric,
+      loss_fn_choice,
+      1,
+      dir_out_temp
+      )
+
+###################################################################
+# Reading the training dataset - Considering only Western Reports and Full Domain
+print(f"\nReading the training dataset - Considering only Western Reports and Full Domain")
+file_in_train = git_repo + "/" + file_in_pdt_train
+df = pd.read_csv(file_in_train)
+df.loc[( df["lon"] - 360 ) > -100, "ff"] = 0
+X_train = df[feature_cols].copy()
+y_train = df[target_col].copy()
+
+dir_out_temp = f"{git_repo}/{dir_out}/{loss_fn_choice}/{eval_metric}/{model_2_train}/west_rep_full_domain"
+os.makedirs(dir_out_temp, exist_ok=True)
+
+build_final_model(
+      X_train, 
+      y_train, 
+      X_test, 
+      y_test, 
+      model_2_train,
+      file_in,
+      eval_metric,
+      loss_fn_choice,
+      1,
+      dir_out_temp
+      )
+
+###################################################################
+# Reading the training dataset - Considering only Eastern Reports and Eastern Domain
+print(f"\nReading the training dataset - Considering only Eastern Reports and Eastern Domain")
+file_in_train = git_repo + "/" + file_in_pdt_train
+df = pd.read_csv(file_in_train)
+df_new = df[( df["lon"] - 360 ) < -100, "ff"]
+X_train = df_new[feature_cols].copy()
+y_train = df_new[target_col].copy()
+
+dir_out_temp = f"{git_repo}/{dir_out}/{loss_fn_choice}/{eval_metric}/{model_2_train}/east_rep_east_domain"
+os.makedirs(dir_out_temp, exist_ok=True)
+
+build_final_model(
+      X_train, 
+      y_train, 
+      X_test, 
+      y_test, 
+      model_2_train,
+      file_in,
+      eval_metric,
+      loss_fn_choice,
+      1,
+      dir_out_temp
+      )
+
+###################################################################
+# Reading the training dataset - Considering only Western Reports and Western Domain
+print(f"\nReading the training dataset - Considering only Western Reports and Western Domain")
+file_in_train = git_repo + "/" + file_in_pdt_train
+df = pd.read_csv(file_in_train)
+df_new = df[( df["lon"] - 360 ) > -100, "ff"]
+X_train = df_new[feature_cols].copy()
+y_train = df_new[target_col].copy()
+
+dir_out_temp = f"{git_repo}/{dir_out}/{loss_fn_choice}/{eval_metric}/{model_2_train}/west_rep_west_domain"
+os.makedirs(dir_out_temp, exist_ok=True)
+
+build_final_model(
+      X_train, 
+      y_train, 
+      X_test, 
+      y_test, 
+      model_2_train,
+      file_in,
+      eval_metric,
+      loss_fn_choice,
+      1,
       dir_out_temp
       )

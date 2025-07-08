@@ -89,8 +89,8 @@ for loss_func in ["bce", "weighted_bce"]:
                   obs_train = np.load(f"{dir_in_temp}/{ml_trained}/obs_train.npy")
                   obs_test = np.load(f"{dir_in_temp}/{ml_trained}/obs_test.npy")
                   prob_thr = np.load(f"{dir_in_temp}/{ml_trained}/best_thr.npy") * 100
-                  fc_train = fc_prob_train > prob_thr
-                  fc_test = fc_prob_test > prob_thr
+                  fc_train = fc_prob_train >= prob_thr
+                  fc_test = fc_prob_test >= prob_thr
 
                   fc_all.append(np.sum(fc_train) / len(fc_train) * 100)
                   fc_all.append(np.sum(fc_test) / len(fc_test) * 100)
@@ -234,7 +234,7 @@ for loss_func in ["bce", "weighted_bce"]:
             plt.tick_params(axis='y', colors='#333333', labelsize=12)
             plt.xticks(rotation=20)
             plt.grid(axis='y', linewidth=0.5, color='gainsboro')
-            plt.ylim([-0.005,0.07])
+            plt.ylim([0,0.07])
             plt.tight_layout()
             plt.savefig(f'{dir_out_temp}/auprc.png', dpi=1000)
             plt.close()
@@ -246,6 +246,7 @@ for loss_func in ["bce", "weighted_bce"]:
             plt.tick_params(axis='x', colors='#333333', labelsize=12)
             plt.tick_params(axis='y', colors='#333333', labelsize=12)
             plt.xticks(rotation=20)
+            plt.ylim([0,2])
             plt.grid(axis='y', linewidth=0.5, color='gainsboro')
             plt.tight_layout()
             plt.savefig(f'{dir_out_temp}/fb.png', dpi=1000)
