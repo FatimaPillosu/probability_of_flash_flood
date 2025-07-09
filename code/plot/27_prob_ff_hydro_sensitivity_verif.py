@@ -26,7 +26,7 @@ from matplotlib.ticker import FuncFormatter
 
 # Usage: python3 27_prob_ff_hydro_sensitivity_verif.py
 
-# Runtime: ~ 30 minutes.
+# Runtime: ~ 2 minutes.
 
 # Author: Fatima M. Pillosu <fatima.pillosu@ecmwf.int> | ORCID 0000-0001-8127-0990
 # License: Creative Commons Attribution-NonCommercial_ShareAlike 4.0 International
@@ -45,7 +45,7 @@ from matplotlib.ticker import FuncFormatter
 
 ########################################################################################
 # INPUT PARAMETERS
-sensitivity_analysis_list = ["red_10", "red_50", "red_90", "east_rep_full_domain", "west_rep_full_domain"]
+sensitivity_analysis_list = ["red_10", "red_50", "red_90", "east_rep_full_domain", "west_rep_full_domain", "east_rep_east_domain", "west_rep_west_domain"]
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
 dir_in = "data/processed/19_prob_ff_hydro_short_fc_sensitivity_global"
 dir_out = "data/plot/27_prob_ff_hydro_sensitivity_verif"
@@ -53,18 +53,13 @@ dir_out = "data/plot/27_prob_ff_hydro_sensitivity_verif"
 
 
 # Initialising the variables storing the overall scores
-auprc_train_all = []
 auprc_test_all = []
-aroc_train_all = []
 aroc_test_all = []
-fb_train_all = []
 fb_test_all = []
 
 # Initialising the variables containing the distribution of forecast probabilities
 fc_prob_all = []
 fc_all = []
-colour_all = []
-fc_prob_max_all = []
 
 
 # Creating the verification plots
@@ -74,46 +69,28 @@ for sensitivity_analysis in sensitivity_analysis_list:
 
       # Creating the input/output directory
       dir_in_temp = f'{git_repo}/{dir_in}/bce/auc/gradient_boosting_xgboost/{sensitivity_analysis}'
-      dir_out_temp = f'{git_repo}/{dir_out}/bce/auc/gradient_boosting_xgboost/{sensitivity_analysis}'
-      os.makedirs(dir_out_temp, exist_ok=True)
+      if sensitivity_analysis in ["red_10", "red_50", "red_90"]:
+            dir_in_temp = f'{dir_in_temp}/iter_0'
+      dir_out_overall_temp = f'{git_repo}/{dir_out}/bce/auc/gradient_boosting_xgboost'     
+      dir_out_breakdown_temp = f'{dir_out_overall_temp}/{sensitivity_analysis}'
+      os.makedirs(dir_out_overall_temp, exist_ok=True)
+      os.makedirs(dir_out_breakdown_temp, exist_ok=True)
 
       # Reading the predictions and observations
-      fc_prob_train = np.load(f"{dir_in_temp}/fc_train.npy") * 100
       fc_prob_test = np.load(f"{dir_in_temp}/fc_test.npy") * 100
-      obs_train = np.load(f"{dir_in_temp}/obs_train.npy")
       obs_test = np.load(f"{dir_in_temp}/obs_test.npy")
       prob_thr = np.load(f"{dir_in_temp}/best_thr.npy") * 100
-      fc_train = fc_prob_train > prob_thr
-      fc_test = fc_prob_test > prob_thr
+      fc_test = fc_prob_test >= prob_thr
 
-      fc_all.append(np.sum(fc_train) / len(fc_train) * 100)
       fc_all.append(np.sum(fc_test) / len(fc_test) * 100)
-
-      fc_prob_all.append(fc_prob_train)
       fc_prob_all.append(fc_prob_test)
 
-      fc_prob_max_all.append(np.max(fc_prob_train))
-      fc_prob_max_all.append(np.max(fc_prob_test))
-
-      colour_all.append("#800080")
-      colour_all.append("#00B0F0")
-
-
       # Computing the contingency table
-      h_train, fa_train, m_train, cn_train = contingency_table_probabilistic(obs_train, fc_prob_train, 100)
       h_test, fa_test, m_test, cn_test = contingency_table_probabilistic(obs_test, fc_prob_test, 100)
       
 
       # Plotting the precision-recall curve
       plt.figure(figsize=(6.5, 6))
-
-      p_train = precision(h_train, fa_train)
-      hr_train = hit_rate(h_train, m_train)
-      ref_train = np.sum(obs_train) / len(obs_train)
-      auprc_train_all.append(average_precision_score(obs_train, fc_prob_train))
-      plt.plot(hr_train, p_train, "-o", color = "#800080", lw = 2, ms=4)
-      plt.plot([0,1], [ref_train, ref_train], color = "#333333", lw = 2)
-
       p_test = precision(h_test, fa_test)
       hr_test = hit_rate(h_test, m_test)
       ref_test = np.sum(obs_test) / len(obs_test)
@@ -131,23 +108,12 @@ for sensitivity_analysis in sensitivity_analysis_list:
       plt.xlim([-0.02,1.02])
       plt.ylim([-0.02,1.02])
       plt.tight_layout()
-      plt.savefig(f'{dir_out_temp}/pr_curve_{sensitivity_analysis}.png', dpi=1000)
+      plt.savefig(f'{dir_out_breakdown_temp}/pr_curve_{sensitivity_analysis}.png', dpi=1000)
       plt.close()
 
 
       # Plotting the ROC curve - Trapezium and Continuous
       plt.figure(figsize=(6.5, 6))
-
-      hr_train = hit_rate(h_train, m_train)
-      far_train = false_alarm_rate(fa_train, cn_train)
-      aroc_train = aroc_trapezium(hr_train, far_train)
-      plt.plot(far_train, hr_train, "-o", color = "#800080", lw = 2, ms=4, label = f"{aroc_train:.3f}")
-
-      far_train_c, hr_train_c, thr_roc = roc_curve(obs_train, fc_prob_train)
-      aroc_train_c = auc(far_train_c, hr_train_c)
-      aroc_train_all.append(aroc_train_c)
-      plt.plot(far_train_c, hr_train_c, "--", color = "#800080", lw = 2, ms=2, label = f"{aroc_train_c:.3f}")
-      
       hr_test = hit_rate(h_test, m_test)
       far_test = false_alarm_rate(fa_test, cn_test)
       aroc_test = aroc_trapezium(hr_test, far_test)
@@ -174,16 +140,12 @@ for sensitivity_analysis in sensitivity_analysis_list:
       plt.ylim([-0.02,1.02])
       plt.legend(title = "AROC", title_fontsize=24, fontsize=24, frameon=False, loc='lower right')
       plt.tight_layout()
-      plt.savefig(f'{dir_out_temp}/roc_curve_{sensitivity_analysis}.png', dpi=1000)
+      plt.savefig(f'{dir_out_breakdown_temp}/roc_curve_{sensitivity_analysis}.png', dpi=1000)
       plt.close()
 
 
       # Plotting the reliability diagram
       fig, ax = plt.subplots(figsize=(6.5, 6))
-
-      mean_prob_fc_train, mean_freq_obs_train, sharpness_train = reliability_diagram(obs_train, fc_prob_train)
-      plt.plot(mean_prob_fc_train, mean_freq_obs_train * 100, "-o", color = "#800080", lw = 2, ms=4)
-      
       mean_prob_fc_test, mean_freq_obs_test, sharpness_test = reliability_diagram(obs_test, fc_prob_test)
       plt.plot(mean_prob_fc_test, mean_freq_obs_test * 100, "-o", color = "#00B0F0", lw = 2, ms=4)
       
@@ -199,16 +161,14 @@ for sensitivity_analysis in sensitivity_analysis_list:
       plt.xlim([-1,101])
       plt.ylim([-1,101])
       plt.tight_layout()
-      plt.savefig(f'{dir_out_temp}/reliability_diagram_{sensitivity_analysis}.png', dpi=1000)
+      plt.savefig(f'{dir_out_breakdown_temp}/reliability_diagram_{sensitivity_analysis}.png', dpi=1000)
       plt.close()
 
       # Computing the frequency bias
-      fb_train_all.append(np.sum(fc_train) / np.sum(obs_train))
       fb_test_all.append( np.sum(fc_test) / np.sum(obs_test))
 
 
 # Plotting the overall scores - AROC
-plt.plot(sensitivity_analysis_list, aroc_train_all, "-o", color = "#800080", lw = 2, ms=4)
 plt.plot(sensitivity_analysis_list, aroc_test_all, "-o", color = "#00B0F0", lw = 2, ms=4)
 plt.ylabel("AROC", color = "#333333", fontsize = 12)
 plt.tick_params(axis='x', colors='#333333', labelsize=12)
@@ -217,32 +177,31 @@ plt.xticks(rotation=20)
 plt.grid(axis='y', linewidth=0.5, color='gainsboro')
 plt.ylim([0.5,1])
 plt.tight_layout()
-plt.savefig(f'{dir_out_temp}/aroc.png', dpi=1000)
+plt.savefig(f'{dir_out_overall_temp}/aroc.png', dpi=1000)
 plt.close()
 
 # Plotting the overall scores - AUPRC
-plt.plot(sensitivity_analysis_list, auprc_train_all, "-o", color = "#800080", lw = 2, ms=4)
 plt.plot(sensitivity_analysis_list, auprc_test_all, "-o", color = "#00B0F0", lw = 2, ms=4)
 plt.ylabel("AUPRC", color = "#333333", fontsize = 12)
 plt.tick_params(axis='x', colors='#333333', labelsize=12)
 plt.tick_params(axis='y', colors='#333333', labelsize=12)
 plt.xticks(rotation=20)
 plt.grid(axis='y', linewidth=0.5, color='gainsboro')
-plt.ylim([-0.005,0.07])
+plt.ylim([0,0.07])
 plt.tight_layout()
-plt.savefig(f'{dir_out_temp}/auprc.png', dpi=1000)
+plt.savefig(f'{dir_out_overall_temp}/auprc.png', dpi=1000)
 plt.close()
 
 # Plotting the overall scores - FB
-plt.plot(sensitivity_analysis_list, fb_train_all, "-o", color = "#800080", lw = 2, ms=4)
 plt.plot(sensitivity_analysis_list, fb_test_all, "-o", color = "#00B0F0", lw = 2, ms=4)
 plt.ylabel("FB", color = "#333333", fontsize = 12)
 plt.tick_params(axis='x', colors='#333333', labelsize=12)
 plt.tick_params(axis='y', colors='#333333', labelsize=12)
 plt.xticks(rotation=20)
+plt.ylim([0,2])
 plt.grid(axis='y', linewidth=0.5, color='gainsboro')
 plt.tight_layout()
-plt.savefig(f'{dir_out_temp}/fb.png', dpi=1000)
+plt.savefig(f'{dir_out_overall_temp}/fb.png', dpi=1000)
 plt.close()
 
 # # Creating the distribution plots showing the distribution of forecast probabilities and yes-events

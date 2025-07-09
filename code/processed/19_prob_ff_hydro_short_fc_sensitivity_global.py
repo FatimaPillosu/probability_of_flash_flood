@@ -252,7 +252,17 @@ def build_final_model(
 ##############################################################################
 
 
-# Reading the test dataset
+# Setting reproducible seed generator
+num_iter = 1
+rng = np.random.RandomState(42) 
+seeds = rng.randint(0, 1_000_000_000, size=num_iter)
+
+# Reading the train and test dataset
+file_in_train = git_repo + "/" + file_in_pdt_train
+df = pd.read_csv(file_in_train)
+df_yes = df[df['ff'] == 1]
+df_no = df[df['ff'] == 0]
+
 file_in_test = git_repo + "/" + file_in_pdt_test
 X_test, y_test = load_data(file_in_test, feature_cols, target_col)
 
@@ -264,151 +274,11 @@ else:
 file_in = f"{git_repo}/{dir_in_model}/{loss_fn_choice}/{eval_metric}/{model_2_train}/model.{model_ext}"
 
 
-#######################################################
-# Reading the training dataset - Reducing overall 10% of the reports
-print(f"\nReading the training dataset - Reducing overall 10% of the reports")
-red = 0.1
-file_in_train = git_repo + "/" + file_in_pdt_train
-df = pd.read_csv(file_in_train)
-df_yes = df[df['ff'] == 1]
-df_no = df[df['ff'] == 0]
-df_yes_reduced = df_yes.sample(frac=(1-red), random_state=42)
-df_reduced = pd.concat([df_yes_reduced, df_no], ignore_index=True)
-X_train = df_reduced[feature_cols].copy()
-y_train = df_reduced[target_col].copy()
-
-dir_out_temp = f"{git_repo}/{dir_out}/{loss_fn_choice}/{eval_metric}/{model_2_train}/red_10"
-os.makedirs(dir_out_temp, exist_ok=True)
-
-build_final_model(
-      X_train, 
-      y_train, 
-      X_test, 
-      y_test, 
-      model_2_train,
-      file_in,
-      eval_metric,
-      loss_fn_choice,
-      1,
-      dir_out_temp
-      )
-
-
-#######################################################
-# Reading the training dataset - Reducing overall 50% of the reports
-print(f"\nReading the training dataset - Reducing overall 50% of the reports")
-red = 0.5
-file_in_train = git_repo + "/" + file_in_pdt_train
-df = pd.read_csv(file_in_train)
-df_yes = df[df['ff'] == 1]
-df_no = df[df['ff'] == 0]
-df_yes_reduced = df_yes.sample(frac=(1-red), random_state=42)
-df_reduced = pd.concat([df_yes_reduced, df_no], ignore_index=True)
-X_train = df_reduced[feature_cols].copy()
-y_train = df_reduced[target_col].copy()
-
-dir_out_temp = f"{git_repo}/{dir_out}/{loss_fn_choice}/{eval_metric}/{model_2_train}/red_50"
-os.makedirs(dir_out_temp, exist_ok=True)
-
-build_final_model(
-      X_train, 
-      y_train, 
-      X_test, 
-      y_test, 
-      model_2_train,
-      file_in,
-      eval_metric,
-      loss_fn_choice,
-      1,
-      dir_out_temp
-      )
-
-
-#######################################################
-# Reading the training dataset - Reducing overall 90% of the reports
-print(f"\nReading the training dataset - Reducing overall 90% of the reports")
-red = 0.9
-file_in_train = git_repo + "/" + file_in_pdt_train
-df = pd.read_csv(file_in_train)
-df_yes = df[df['ff'] == 1]
-df_no = df[df['ff'] == 0]
-df_yes_reduced = df_yes.sample(frac=(1-red), random_state=42)
-df_reduced = pd.concat([df_yes_reduced, df_no], ignore_index=True)
-X_train = df_reduced[feature_cols].copy()
-y_train = df_reduced[target_col].copy()
-
-dir_out_temp = f"{git_repo}/{dir_out}/{loss_fn_choice}/{eval_metric}/{model_2_train}/red_90"
-os.makedirs(dir_out_temp, exist_ok=True)
-
-build_final_model(
-      X_train, 
-      y_train, 
-      X_test, 
-      y_test, 
-      model_2_train,
-      file_in,
-      eval_metric,
-      loss_fn_choice,
-      1,
-      dir_out_temp
-      )
-
-###################################################################
-# Reading the training dataset - Considering only Eastern Reports and Full Domain
-print(f"\nReading the training dataset - Considering only Eastern Reports and Full Domain")
-file_in_train = git_repo + "/" + file_in_pdt_train
-df = pd.read_csv(file_in_train)
-df.loc[( df["lon"] - 360 ) < -100, "ff"] = 0
-X_train = df[feature_cols].copy()
-y_train = df[target_col].copy()
-
-dir_out_temp = f"{git_repo}/{dir_out}/{loss_fn_choice}/{eval_metric}/{model_2_train}/east_rep_full_domain"
-os.makedirs(dir_out_temp, exist_ok=True)
-
-build_final_model(
-      X_train, 
-      y_train, 
-      X_test, 
-      y_test, 
-      model_2_train,
-      file_in,
-      eval_metric,
-      loss_fn_choice,
-      1,
-      dir_out_temp
-      )
-
-###################################################################
-# Reading the training dataset - Considering only Western Reports and Full Domain
-print(f"\nReading the training dataset - Considering only Western Reports and Full Domain")
-file_in_train = git_repo + "/" + file_in_pdt_train
-df = pd.read_csv(file_in_train)
-df.loc[( df["lon"] - 360 ) > -100, "ff"] = 0
-X_train = df[feature_cols].copy()
-y_train = df[target_col].copy()
-
-dir_out_temp = f"{git_repo}/{dir_out}/{loss_fn_choice}/{eval_metric}/{model_2_train}/west_rep_full_domain"
-os.makedirs(dir_out_temp, exist_ok=True)
-
-build_final_model(
-      X_train, 
-      y_train, 
-      X_test, 
-      y_test, 
-      model_2_train,
-      file_in,
-      eval_metric,
-      loss_fn_choice,
-      1,
-      dir_out_temp
-      )
-
-###################################################################
+######################################################################
 # Reading the training dataset - Considering only Eastern Reports and Eastern Domain
 print(f"\nReading the training dataset - Considering only Eastern Reports and Eastern Domain")
-file_in_train = git_repo + "/" + file_in_pdt_train
-df = pd.read_csv(file_in_train)
-df_new = df[( df["lon"] - 360 ) < -100, "ff"]
+df_new = df[( df["lon"] - 360 ) > -100] 
+
 X_train = df_new[feature_cols].copy()
 y_train = df_new[target_col].copy()
 
@@ -428,12 +298,12 @@ build_final_model(
       dir_out_temp
       )
 
-###################################################################
+
+########################################################################
 # Reading the training dataset - Considering only Western Reports and Western Domain
 print(f"\nReading the training dataset - Considering only Western Reports and Western Domain")
-file_in_train = git_repo + "/" + file_in_pdt_train
-df = pd.read_csv(file_in_train)
-df_new = df[( df["lon"] - 360 ) > -100, "ff"]
+df_new = df[( df["lon"] - 360 ) < -100] 
+
 X_train = df_new[feature_cols].copy()
 y_train = df_new[target_col].copy()
 
@@ -452,3 +322,141 @@ build_final_model(
       1,
       dir_out_temp
       )
+
+
+###################################################################
+# Reading the training dataset - Considering only Eastern Reports and Full Domain
+print(f"\nReading the training dataset - Considering only Eastern Reports and Full Domain")
+df_new = df
+df_new.loc[( df["lon"] - 360 ) < -100, "ff"] = 0
+
+X_train = df_new[feature_cols].copy()
+y_train = df_new[target_col].copy()
+
+dir_out_temp = f"{git_repo}/{dir_out}/{loss_fn_choice}/{eval_metric}/{model_2_train}/east_rep_full_domain"
+os.makedirs(dir_out_temp, exist_ok=True)
+
+build_final_model(
+      X_train, 
+      y_train, 
+      X_test, 
+      y_test, 
+      model_2_train,
+      file_in,
+      eval_metric,
+      loss_fn_choice,
+      1,
+      dir_out_temp
+      )
+
+
+####################################################################
+# Reading the training dataset - Considering only Western Reports and Full Domain
+print(f"\nReading the training dataset - Considering only Western Reports and Full Domain")
+df_new = df
+df_new.loc[( df["lon"] - 360 ) > -100, "ff"] = 0
+X_train = df[feature_cols].copy()
+y_train = df[target_col].copy()
+
+dir_out_temp = f"{git_repo}/{dir_out}/{loss_fn_choice}/{eval_metric}/{model_2_train}/west_rep_full_domain"
+os.makedirs(dir_out_temp, exist_ok=True)
+
+build_final_model(
+      X_train, 
+      y_train, 
+      X_test, 
+      y_test, 
+      model_2_train,
+      file_in,
+      eval_metric,
+      loss_fn_choice,
+      1,
+      dir_out_temp
+      )
+
+
+#######################################################
+# Reading the training dataset - Reducing overall 10% of the reports
+print(f"\nReading the training dataset - Reducing overall 10% of the reports")
+red = 0.1
+
+for ind_seed, seed in enumerate(seeds):
+
+      df_yes_reduced = df_yes.sample(frac=(1-red), random_state=seed)
+      df_reduced = pd.concat([df_yes_reduced, df_no], ignore_index=True)
+      X_train = df_reduced[feature_cols].copy()
+      y_train = df_reduced[target_col].copy()
+
+      dir_out_temp = f"{git_repo}/{dir_out}/{loss_fn_choice}/{eval_metric}/{model_2_train}/red_{red*100}/iter_{ind_seed}"
+      os.makedirs(dir_out_temp, exist_ok=True)
+
+      build_final_model(
+            X_train, 
+            y_train, 
+            X_test, 
+            y_test, 
+            model_2_train,
+            file_in,
+            eval_metric,
+            loss_fn_choice,
+            1,
+            dir_out_temp
+            )
+
+
+#######################################################
+# Reading the training dataset - Reducing overall 50% of the reports
+print(f"\nReading the training dataset - Reducing overall 50% of the reports")
+red = 0.5
+
+for ind_seed, seed in enumerate(seeds):
+
+      df_yes_reduced = df_yes.sample(frac=(1-red), random_state=seed)
+      df_reduced = pd.concat([df_yes_reduced, df_no], ignore_index=True)
+      X_train = df_reduced[feature_cols].copy()
+      y_train = df_reduced[target_col].copy()
+
+      dir_out_temp = f"{git_repo}/{dir_out}/{loss_fn_choice}/{eval_metric}/{model_2_train}/red_{red*100}/iter_{ind_seed}"
+      os.makedirs(dir_out_temp, exist_ok=True)
+
+      build_final_model(
+            X_train, 
+            y_train, 
+            X_test, 
+            y_test, 
+            model_2_train,
+            file_in,
+            eval_metric,
+            loss_fn_choice,
+            1,
+            dir_out_temp
+            )
+      
+
+#######################################################
+# Reading the training dataset - Reducing overall 90% of the reports
+print(f"\nReading the training dataset - Reducing overall 90% of the reports")
+red = 0.9
+
+for ind_seed, seed in enumerate(seeds):
+
+      df_yes_reduced = df_yes.sample(frac=(1-red), random_state=seed)
+      df_reduced = pd.concat([df_yes_reduced, df_no], ignore_index=True)
+      X_train = df_reduced[feature_cols].copy()
+      y_train = df_reduced[target_col].copy()
+
+      dir_out_temp = f"{git_repo}/{dir_out}/{loss_fn_choice}/{eval_metric}/{model_2_train}/red_{red*100}/iter_{ind_seed}"
+      os.makedirs(dir_out_temp, exist_ok=True)
+
+      build_final_model(
+            X_train, 
+            y_train, 
+            X_test, 
+            y_test, 
+            model_2_train,
+            file_in,
+            eval_metric,
+            loss_fn_choice,
+            1,
+            dir_out_temp
+            )

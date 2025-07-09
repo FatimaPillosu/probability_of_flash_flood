@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import pandas as pd
 import joblib
 import shap
@@ -34,7 +35,7 @@ import matplotlib.pyplot as plt
 # INPUT PARAMETERS
 feature_cols = ["tp_prob_1", "tp_prob_max_1_adj_gb", "tp_prob_50", "tp_prob_max_50_adj_gb", "swvl", "sdfor", "lai"]
 target_col = "ff"
-model_name = "gradient_boosting_xgboost"
+model_name = "random_forest_xgboost" #feed_forward_keras - gradient_boosting_xgboost
 loss_func_list = ["bce", "weighted_bce"]
 eval_metric_list = ["auc", "auprc"]
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
