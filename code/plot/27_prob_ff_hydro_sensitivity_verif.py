@@ -45,7 +45,7 @@ from matplotlib.ticker import FuncFormatter
 
 ########################################################################################
 # INPUT PARAMETERS
-sensitivity_analysis_list = ["red_10", "red_50", "red_90", "east_rep_full_domain", "west_rep_full_domain", "east_rep_east_domain", "west_rep_west_domain"]
+sensitivity_analysis_list = ["red_10", "red_50", "red_90", "west_rep_full_domain", "east_rep_full_domain", "west_rep_west_domain", "east_rep_east_domain"]
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
 dir_in = "data/processed/19_prob_ff_hydro_short_fc_sensitivity_global"
 dir_out = "data/plot/27_prob_ff_hydro_sensitivity_verif"
