@@ -36,8 +36,8 @@ import metview as mv
 
 ######################################################################################
 # INPUT PARAMETERS
-the_date = datetime(2024, 10, 29, 0) 
-mask_domain = [35, -10, 44, 4]
+the_date = datetime(2021, 7, 20, 0) 
+mask_domain = [25, 100, 40, 125]
 model_name = "gradient_boosting_xgboost"
 loss_func_list = ["bce", "weighted_bce"]
 eval_metric_list = ["auc", "auprc"]

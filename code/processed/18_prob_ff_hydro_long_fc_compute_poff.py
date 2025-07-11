@@ -34,7 +34,7 @@ import joblib
 
 ############################################################################################################
 # INPUT PARAMETERS
-base_date = datetime(2024,10,25)
+base_date = datetime(2021,7,16)
 step_f_start = 24
 step_f_final = 120
 model_name = "gradient_boosting_xgboost"
