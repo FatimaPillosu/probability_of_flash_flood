@@ -19,7 +19,10 @@ import metview as mv
 # lt (positive integer, in days): lead time to consider.
 #                                                     - if lt=0 -> reanalysis
 #                                                     - if lt>0 -> forecasts 
-# mask_domain (list of floats, in S/W/N/E coordinates): domain's coordinates.
+# mask_domain (list of floats, in S/W/N/E coordinates): domain's coordinates.Considered values are:
+#                                                         - [22,-130,52,-60] USA
+#                                                         - [25, 100, 40, 125] China
+#                                                         - [35, -10, 44, 4] Spain
 # model_name (string): name of the model to train.
 # loss_func_list (list of strings): type of loss function considered. Valid values are:
 #                                                           - bce: no weights applied to loss function.
@@ -33,8 +36,8 @@ import metview as mv
 
 ######################################################################################
 # INPUT PARAMETERS
-the_date = datetime(2021, 9, 1, 0) 
-mask_domain = [22,-130,52,-60]
+the_date = datetime(2024, 10, 29, 0) 
+mask_domain = [35, -10, 44, 4]
 model_name = "gradient_boosting_xgboost"
 loss_func_list = ["bce", "weighted_bce"]
 eval_metric_list = ["auc", "auprc"]

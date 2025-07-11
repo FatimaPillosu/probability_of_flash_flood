@@ -32,7 +32,7 @@ import joblib
 
 ############################################################################################################
 # INPUT PARAMETERS
-the_date_start = datetime(2021,9,1)
+the_date_start = datetime(2021,7,21)
 model_name = "gradient_boosting_xgboost"
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
 file_in_adj_gb = "data/raw/adjacent_gb/era5_delta_0.5.npy"
