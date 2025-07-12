@@ -44,7 +44,7 @@ eval_metric_list = ["auc", "auprc"]
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
 dir_in_short_fc = "data/processed/17_prob_ff_hydro_short_fc_compute_poff"
 dir_in_long_fc = "data/processed/18_prob_ff_hydro_long_fc_compute_poff"
-dir_out = "data/plot/26_prob_ff_hydro_short_fc_map"
+dir_out = "data/plot/26_prob_ff_hydro_short_long_fc_map"
 ######################################################################################
 
 
