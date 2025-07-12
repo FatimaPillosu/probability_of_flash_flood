@@ -17,7 +17,10 @@ import metview as mv
 # INPUT PARAMETERS DESCRIPTION
 # the_date (date, in YYYYMMDD format): date to consider.
 # rp_list (list of integers): list of the return periods.
-# mask_domain (list of floats, in S/W/N/E coordinates): domain's coordinates.
+# mask_domain (list of floats, in S/W/N/E coordinates): domain's coordinates. Valid values are:
+#                                                                                                     - 22,-130,52,-60 -> CONUS
+#                                                                                                     - 25, 100, 40, 125 / 20, 73, 50, 125 -> China (zoomed out & zoomed in)
+#                                                                                                     - 30, -10, 60, 40 / 35, -10, 44, 4 -> Spain (zoomed out & zoomed in)
 # git_repo (string): repository's local path.
 # file_in_mask (string): relative path of the file containing the domain's mask.
 # dir_in (string): relative path of the directory containing the probabilities.
@@ -25,9 +28,9 @@ import metview as mv
 
 #######################################################################
 # INPUT PARAMETERS
-the_date = datetime(2021,8,29)
+the_date = datetime(2024,10,29)
 rp_list = [1, 2, 5, 10, 20, 50, 100]
-mask_domain = [22,-130,52,-60]
+mask_domain = [30, -10, 60, 40] 
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
 file_in_mask = "data/raw/mask/usa_era5.grib"
 dir_in = "data/processed/04_tp_prob_exceed_rp_short_fc"
