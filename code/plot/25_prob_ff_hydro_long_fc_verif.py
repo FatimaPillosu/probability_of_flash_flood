@@ -66,7 +66,7 @@ step_f_start = 24
 step_f_final = 120
 feature_cols = ["tp_prob_1", "tp_prob_max_1_adj_gb", "tp_prob_50", "tp_prob_max_50_adj_gb", "swvl", "sdfor", "lai"]
 target_col = "ff"
-model_name_list = ["gradient_boosting_xgboost", "gradient_boosting_lightgbm", "gradient_boosting_catboost", "feed_forward_keras", "random_forest_xgboost", "random_forest_lightgbm"]
+model_name_list = ["gradient_boosting_xgboost", "gradient_boosting_lightgbm", "gradient_boosting_catboost", "random_forest_xgboost", "random_forest_lightgbm", "feed_forward_keras"]
 loss_func_list = ["bce", "weighted_bce"]
 eval_metric_list = ["auc", "auprc"]
 git_repo = "/ec/vol/ecpoint_dev/mofp/phd/probability_of_flash_flood"
@@ -273,13 +273,14 @@ for model_name in model_name_list:
 
 
                   # Plotting the overall scores - AROC
-                  fig, ax = plt.subplots(figsize=(6.5, 6))
+                  fig, ax = plt.subplots(figsize=(8, 6.5))
                   plt.plot(np.arange(step_f_start, step_f_final + 1, 24), aroc_test_all, "-o", color = "#00B0F0", lw = 2, ms=4)
                   plt.plot([step_f_start, step_f_final], [0.5, 0.5] , "--", color = "#333333", lw = 2)
+                  plt.ylabel("Lead time (hours)", color = "#333333", fontsize = 28)
                   plt.ylabel("AROC", color = "#333333", fontsize = 28)
                   plt.tick_params(axis='x', colors='#333333', labelsize=28)
                   plt.tick_params(axis='y', colors='#333333', labelsize=28)
-                  plt.xticks(np.arange(step_f_start, step_f_final + 1, 28))
+                  plt.xticks(np.arange(step_f_start, step_f_final + 1, 24))
                   plt.grid(axis='y', linewidth=0.5, color='gainsboro')
                   plt.ylim([0.45,1])
                   plt.tight_layout()
@@ -287,9 +288,10 @@ for model_name in model_name_list:
                   plt.close()
             
                   # Plotting the overall scores - AUPRC
-                  fig, ax = plt.subplots(figsize=(6.5, 6))
+                  fig, ax = plt.subplots(figsize=(8, 6.5))
                   plt.plot(np.arange(step_f_start, step_f_final + 1, 24), auprc_test_all, "-o", color = "#00B0F0", lw = 2, ms=4)
                   plt.plot([step_f_start, step_f_final], [0, 0] , "--", color = "#333333", lw = 2)
+                  plt.ylabel("Lead time (hours)", color = "#333333", fontsize = 28)
                   plt.ylabel("AUPRC", color = "#333333", fontsize = 28)
                   plt.tick_params(axis='x', colors='#333333', labelsize=28)
                   plt.tick_params(axis='y', colors='#333333', labelsize=28)
@@ -301,9 +303,10 @@ for model_name in model_name_list:
                   plt.close()
 
                   # Plotting the overall scores - FB
-                  fig, ax = plt.subplots(figsize=(6.5, 6))
+                  fig, ax = plt.subplots(figsize=(8, 6.5))
                   plt.plot(np.arange(step_f_start, step_f_final + 1, 24), fb_test_all, "-o", color = "#00B0F0", lw = 2, ms=4)
                   plt.plot([step_f_start, step_f_final], [1, 1] , "--", color = "#333333", lw = 2)
+                  plt.ylabel("Lead time (hours)", color = "#333333", fontsize = 28)
                   plt.ylabel("FB", color = "#333333", fontsize = 28)
                   plt.tick_params(axis='x', colors='#333333', labelsize=28)
                   plt.tick_params(axis='y', colors='#333333', labelsize=28)
