@@ -34,6 +34,9 @@ num_rep_all = np.load(temp_dir_in + "/counts_reports_all.npy")
 num_rep_ff = np.load(temp_dir_in + "/counts_reports_ff.npy")
 num_rep_ff_withCoord = np.load(temp_dir_in + "/counts_reports_ff_with_coord.npy")
 
+print(num_rep_ff_withCoord)
+exit()
+
 # Plot the counts
 fig, ax = plt.subplots(figsize=(10, 8))
 index = np.arange(len(years_rep))

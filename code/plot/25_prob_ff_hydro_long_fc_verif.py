@@ -15,7 +15,7 @@ from utils.verif_scores import (contingency_table_probabilistic,
                                                       reliability_diagram,
                                                       aroc_trapezium
                                                       )
-from matplotlib.ticker import FuncFormatter
+from matplotlib.ticker import FuncFormatter, MultipleLocator
 
 logging.basicConfig(
     level=logging.INFO,
@@ -127,9 +127,9 @@ def load_data(csv_path: str, feature_cols: List[str], target_col: str) -> Tuple[
 for model_name in model_name_list:
 
       # Creating the verification plots
-      for loss_func in ["bce", "weighted_bce"]:
+      for loss_func in loss_func_list:
 
-            for eval_metric in ["auc", "auprc"]:
+            for eval_metric in eval_metric_list:
 
                   print(f"\nCreating verification plots for loss_fun = {loss_func}, and eval_metric = {eval_metric} for {model_name}")
 
@@ -184,6 +184,22 @@ for model_name in model_name_list:
                         plt.savefig(f'{dir_out_temp}/pr_curve_{step_f}.png', dpi=1000)
                         plt.close()
 
+                        # Plotting the precision-recall curve (zoomed-in)
+                        plt.figure(figsize=(6.5, 6))
+                        plt.plot(hr_test, p_test, "--o", color = "#00B0F0", lw = 2, ms=4)
+                        plt.plot([0,1], [ref_test, ref_test], "--", color = "#333333", lw = 2)
+                        plt.xlabel("Recall", color = "#333333", fontsize = 28)
+                        plt.ylabel("Precision", color = "#333333", fontsize = 28)
+                        plt.tick_params(axis='x', colors='#333333', labelsize=28)
+                        plt.tick_params(axis='y', colors='#333333', labelsize=28)
+                        plt.xticks(np.arange(0, 1.01, 0.2))
+                        plt.yticks(np.arange(0, 1.01, 0.05))
+                        plt.grid(axis='y', linewidth=0.5, color='gainsboro')
+                        plt.xlim([-0.02,1.02])
+                        plt.ylim([-0.02,0.25])
+                        plt.tight_layout()
+                        plt.savefig(f'{dir_out_temp}/pr_curve_zoom_{step_f}.png', dpi=1000)
+                        plt.close()
 
                         # Plotting the ROC curve - Trapezium and Continuous
                         plt.figure(figsize=(6.5, 6))
@@ -214,7 +230,6 @@ for model_name in model_name_list:
                         plt.savefig(f'{dir_out_temp}/roc_curve_{step_f}.png', dpi=1000)
                         plt.close()
 
-
                         # Plotting the reliability diagram
                         fig, ax = plt.subplots(figsize=(6.5, 6))
                         mean_prob_fc_test, mean_freq_obs_test, sharpness_test = reliability_diagram(obs_test, fc_prob_test)
@@ -234,6 +249,25 @@ for model_name in model_name_list:
                         plt.savefig(f'{dir_out_temp}/reliability_diagram_{step_f}.png', dpi=1000)
                         plt.close()
 
+                        # Plotting the reliability diagram (zoomed-in)
+                        fig, ax = plt.subplots(figsize=(6.5, 6))
+                        ax.plot(mean_prob_fc_test, mean_freq_obs_test * 100, "-o", color="#00B0F0", lw=2, ms=4)
+                        ax.plot([0, 20], [0, 20], color="#333333", lw=1)
+                        ax.set_xlabel("Forecast probability", color="#333333", fontsize=28)
+                        ax.set_ylabel("Observation frequency", color="#333333", fontsize=28)
+                        ax.xaxis.set_major_locator(MultipleLocator(5))
+                        ax.xaxis.set_minor_locator(MultipleLocator(1))
+                        ax.yaxis.set_major_locator(MultipleLocator(5))
+                        ax.yaxis.set_minor_locator(MultipleLocator(1))
+                        ax.tick_params(axis='x', colors='#333333', labelsize=28)
+                        ax.tick_params(axis='y', colors='#333333', labelsize=28)
+                        ax.grid(axis='y', which='major', linewidth=0.5, color='gainsboro')
+                        ax.set_xlim([-1, 21])
+                        ax.set_ylim([-1, 21])
+                        plt.tight_layout()
+                        plt.savefig(f'{dir_out_temp}/reliability_diagram_zoom_{step_f}.png', dpi=1000)
+                        plt.close()
+
                         # Computing the frequency bias
                         fb_test_all.append( np.sum(fc_test) / np.sum(obs_test))
 
@@ -241,12 +275,13 @@ for model_name in model_name_list:
                   # Plotting the overall scores - AROC
                   fig, ax = plt.subplots(figsize=(6.5, 6))
                   plt.plot(np.arange(step_f_start, step_f_final + 1, 24), aroc_test_all, "-o", color = "#00B0F0", lw = 2, ms=4)
+                  plt.plot([step_f_start, step_f_final], [0.5, 0.5] , "--", color = "#333333", lw = 2)
                   plt.ylabel("AROC", color = "#333333", fontsize = 28)
                   plt.tick_params(axis='x', colors='#333333', labelsize=28)
                   plt.tick_params(axis='y', colors='#333333', labelsize=28)
                   plt.xticks(np.arange(step_f_start, step_f_final + 1, 28))
                   plt.grid(axis='y', linewidth=0.5, color='gainsboro')
-                  plt.ylim([0.5,1])
+                  plt.ylim([0.45,1])
                   plt.tight_layout()
                   plt.savefig(f'{dir_out_temp}/aroc.png', dpi=1000)
                   plt.close()
@@ -254,12 +289,13 @@ for model_name in model_name_list:
                   # Plotting the overall scores - AUPRC
                   fig, ax = plt.subplots(figsize=(6.5, 6))
                   plt.plot(np.arange(step_f_start, step_f_final + 1, 24), auprc_test_all, "-o", color = "#00B0F0", lw = 2, ms=4)
-                  plt.ylabel("AUPRC", color = "#333333", fontsize = 12)
-                  plt.tick_params(axis='x', colors='#333333', labelsize=12)
-                  plt.tick_params(axis='y', colors='#333333', labelsize=12)
+                  plt.plot([step_f_start, step_f_final], [0, 0] , "--", color = "#333333", lw = 2)
+                  plt.ylabel("AUPRC", color = "#333333", fontsize = 28)
+                  plt.tick_params(axis='x', colors='#333333', labelsize=28)
+                  plt.tick_params(axis='y', colors='#333333', labelsize=28)
                   plt.xticks(np.arange(step_f_start, step_f_final + 1, 24))
                   plt.grid(axis='y', linewidth=0.5, color='gainsboro')
-                  plt.ylim([0,0.07])
+                  plt.ylim([-0.01,0.07])
                   plt.tight_layout()
                   plt.savefig(f'{dir_out_temp}/auprc.png', dpi=1000)
                   plt.close()
@@ -267,9 +303,10 @@ for model_name in model_name_list:
                   # Plotting the overall scores - FB
                   fig, ax = plt.subplots(figsize=(6.5, 6))
                   plt.plot(np.arange(step_f_start, step_f_final + 1, 24), fb_test_all, "-o", color = "#00B0F0", lw = 2, ms=4)
-                  plt.ylabel("FB", color = "#333333", fontsize = 12)
-                  plt.tick_params(axis='x', colors='#333333', labelsize=12)
-                  plt.tick_params(axis='y', colors='#333333', labelsize=12)
+                  plt.plot([step_f_start, step_f_final], [1, 1] , "--", color = "#333333", lw = 2)
+                  plt.ylabel("FB", color = "#333333", fontsize = 28)
+                  plt.tick_params(axis='x', colors='#333333', labelsize=28)
+                  plt.tick_params(axis='y', colors='#333333', labelsize=28)
                   plt.xticks(np.arange(step_f_start, step_f_final + 1, 24))
                   plt.grid(axis='y', linewidth=0.5, color='gainsboro')
                   plt.ylim([0,3])

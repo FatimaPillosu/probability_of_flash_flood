@@ -4,7 +4,7 @@ import numpy as np
 #######################################
 def reliability_diagram(obs, prob):
 
-      prob_bins = np.arange(0, 100 + 1, 1)
+      prob_bins = np.arange(-0.5, 101.5, 1)
       
       mean_prob_fc = []
       mean_freq_obs = []
